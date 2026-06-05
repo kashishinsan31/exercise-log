@@ -1,0 +1,6 @@
+{
+  "name": "Trainer Log Book",
+  "description": "An application for trainers to log client exercises directly to Google Sheets by muscle group.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
