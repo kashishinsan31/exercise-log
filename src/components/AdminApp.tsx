@@ -493,10 +493,10 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                        <div className="flex-1 overflow-y-auto p-2 bg-slate-50/50">
                           <div className="space-y-1">
                              {trainers.map((t, idx) => (
-                               <button 
+                               <div 
                                  key={idx}
                                  onClick={() => loadTrainerData(t)}
-                                 className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-white bg-transparent transition-colors text-left border border-transparent hover:border-slate-200 shadow-sm hover:shadow"
+                                 className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-white bg-transparent transition-colors text-left border border-transparent hover:border-slate-200 shadow-sm hover:shadow cursor-pointer"
                                >
                                  <div className="flex items-center gap-3">
                                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-700 text-sm">
@@ -517,7 +517,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                                    </button>
                                    <Activity className="w-4 h-4 text-indigo-300" />
                                  </div>
-                               </button>
+                               </div>
                              ))}
                              {trainers.length === 0 && !showAddTrainer && (
                                <div className="text-center py-12 text-slate-400 text-xs font-bold">No trainers added yet.</div>
