@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../lib/api';
 import { Shield, LogOut, Plus, Users, Dumbbell, Activity, LineChart as LineChartIcon, Loader2, Database, Link as LinkIcon, UserPlus, Trash2 } from 'lucide-react';
 import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, ClientProfile, ExerciseLog, BodyMeasurement, getOrCreateSpreadsheet, addTrainer, addClient } from '../lib/sheets';
 import { getAccessToken, googleSignIn } from '../lib/firebase';
@@ -66,7 +67,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     // Attempt to load db config
-    fetch('/api/admin/config')
+    apiFetch('/api/admin/config')
        .then(res => res.json())
        .then(data => {
          if (data.spreadsheetId) {
@@ -90,7 +91,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
 
   const loadSystemData = async (spreadsheetId: string) => {
       try {
-          const res = await fetch('/api/admin/systemData');
+          const res = await apiFetch('/api/admin/systemData');
           if (!res.ok) throw new Error("Failed to fetch system data from server");
           const data = await res.json();
           
@@ -132,7 +133,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
          }
       }
 
-      const configRes = await fetch('/api/admin/config', {
+      const configRes = await apiFetch('/api/admin/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ spreadsheetId: resolvedId, accessToken })
@@ -156,7 +157,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
       if (!dbSpreadsheetId || !newTrainerName || !newTrainerEmail) return;
       setIsAddingTrainer(true);
       try {
-          const res = await fetch('/api/admin/addTrainer', {
+          const res = await apiFetch('/api/admin/addTrainer', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ name: newTrainerName, email: newTrainerEmail, password: newTrainerPassword })
@@ -183,7 +184,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
       if (!dbSpreadsheetId || !newClientName || !newClientTrainer) return;
       setIsAddingClient(true);
       try {
-          const res = await fetch('/api/trainer/addClient', {
+          const res = await apiFetch('/api/trainer/addClient', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -216,7 +217,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
       e.stopPropagation();
       if (!confirm(`Are you sure you want to delete trainer ${email}?`)) return;
       try {
-          const res = await fetch('/api/admin/deleteTrainer', {
+          const res = await apiFetch('/api/admin/deleteTrainer', {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ email })
@@ -237,7 +238,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
       e.stopPropagation();
       if (!confirm(`Are you sure you want to delete client ${name}?`)) return;
       try {
-          const res = await fetch('/api/admin/deleteClient', {
+          const res = await apiFetch('/api/admin/deleteClient', {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ name, trainerEmail })

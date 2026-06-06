@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../lib/api';
 import { LogOut, Dumbbell, Calendar as CalendarIcon, Loader2, CheckCircle2, List as ListIcon, Activity, Plus, PieChart as ChartIcon, Lock, Trash2 } from 'lucide-react';
 import { ExerciseLog, BodyMeasurement } from '../lib/sheets';
 import { cn } from '../lib/utils';
@@ -55,7 +56,7 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     // Fetch global exercises
-    fetch('/api/exercises')
+    apiFetch('/api/exercises')
       .then(res => res.json())
       .then(data => {
         if(Array.isArray(data)) setExercises(data);
@@ -78,7 +79,7 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
 
   const fetchClients = async (tEmail: string) => {
     try {
-      const dataRes = await fetch(`/api/trainer/clients?trainerEmail=${encodeURIComponent(tEmail)}`);
+      const dataRes = await apiFetch(`/api/trainer/clients?trainerEmail=${encodeURIComponent(tEmail)}`);
       const dataPayload = await dataRes.json();
       if (!dataRes.ok) throw new Error(dataPayload.error || 'Failed to fetch clients');
       setClients(dataPayload || []);
@@ -93,7 +94,7 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
       setErrorMsg('');
 
       try {
-        const res = await fetch('/api/auth/login', {
+        const res = await apiFetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email.trim(), password, role: 'trainer' })
@@ -121,7 +122,7 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
     setIsLoadingLogs(true);
     setErrorMsg('');
     try {
-      const dataRes = await fetch(`/api/client/data?clientName=${encodeURIComponent(clientName)}`);
+      const dataRes = await apiFetch(`/api/client/data?clientName=${encodeURIComponent(clientName)}`);
       const dataPayload = await dataRes.json();
       
       if (!dataRes.ok) {
@@ -139,7 +140,7 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
 
   const handleDeleteLog = async (log: ExerciseLog) => {
     try {
-      const res = await fetch('/api/trainer/log', {
+      const res = await apiFetch('/api/trainer/log', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(log)
@@ -512,7 +513,7 @@ function LoggerForm({
     };
 
     try {
-      const res = await fetch('/api/trainer/log', {
+      const res = await apiFetch('/api/trainer/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newLog)
@@ -670,7 +671,7 @@ function MeasurementForm({
     };
 
     try {
-      const res = await fetch('/api/trainer/measurements', {
+      const res = await apiFetch('/api/trainer/measurements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newM)

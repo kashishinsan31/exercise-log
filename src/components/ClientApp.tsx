@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiFetch } from '../lib/api';
 import { Loader2, Dumbbell, ArrowLeft, Lock, FileText, Activity, User, PlusCircle } from 'lucide-react';
 import { 
   fetchAllClients, 
@@ -59,7 +60,7 @@ export function ClientApp({ onBack }: { onBack: () => void }) {
 
   const fetchClientData = async (name: string) => {
     try {
-      const dataRes = await fetch(`/api/client/data?clientName=${encodeURIComponent(name)}`);
+      const dataRes = await apiFetch(`/api/client/data?clientName=${encodeURIComponent(name)}`);
       const dataPayload = await dataRes.json();
       if (dataRes.ok) {
         setClientLogs(dataPayload.logs || []);
@@ -76,7 +77,7 @@ export function ClientApp({ onBack }: { onBack: () => void }) {
       setErrorMsg('');
 
       try {
-        const res = await fetch('/api/auth/login', {
+        const res = await apiFetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email.trim(), password, role: 'client' })
@@ -92,7 +93,7 @@ export function ClientApp({ onBack }: { onBack: () => void }) {
         localStorage.setItem('protrainer_session', JSON.stringify({ role: 'client', user: data.user }));
         
         // Fetch securely filtered data using name
-        const dataRes = await fetch(`/api/client/data?clientName=${encodeURIComponent(data.user.name)}`);
+        const dataRes = await apiFetch(`/api/client/data?clientName=${encodeURIComponent(data.user.name)}`);
         const dataPayload = await dataRes.json();
         
         if (!dataRes.ok) {
