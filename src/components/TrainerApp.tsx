@@ -485,7 +485,7 @@ function LoggerForm({
     };
 
     try {
-      await deleteLogRecord(log);
+      await appendLogRecord(newLog);
       
       onLogAdded(newLog);
       

@@ -13,6 +13,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'trainers' | 'clients'>('overview');
 
   // Dash State
   const [dbSpreadsheetId, setDbSpreadsheetId] = useState<string>('');
@@ -50,6 +51,16 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [clientLogs, setClientLogs] = useState<ExerciseLog[]>([]);
   const [clientMeasurements, setClientMeasurements] = useState<BodyMeasurement[]>([]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === 'admin123') {
+      setIsAuthenticated(true);
+      setError(false);
+    } else {
+      setError(true);
+    }
+  };
 
   useEffect(() => {
     const stored = localStorage.getItem('protrainer_db');
@@ -325,7 +336,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                        </div>
                        
                        {showAddTrainer && (
-                         <form onSubmit={handleCreateTrainer} className="p-4 bg-indigo-50/50 border-b border-indigo-100 flex flex-col gap-3 shrink-0">
+                         <form onSubmit={handleAddTrainer} className="p-4 bg-indigo-50/50 border-b border-indigo-100 flex flex-col gap-3 shrink-0">
                             <div className="flex justify-between items-center">
                                <h4 className="text-xs font-bold text-indigo-800 tracking-wider">NEW TRAINER ACCOUNT</h4>
                                <button type="button" onClick={() => setShowAddTrainer(false)} className="text-indigo-400 hover:text-indigo-600">×</button>

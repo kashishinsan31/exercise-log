@@ -16,7 +16,7 @@ import {
   Line
 } from "recharts";
 import { format, parseISO, subDays, isAfter, startOfWeek } from "date-fns";
-import { ExerciseLog, BodyMeasurement } from "../lib/sheets";
+import { ExerciseLog, BodyMeasurement } from "../lib/db";
 import { Dumbbell, Activity, CalendarDays, TrendingUp, Scale } from "lucide-react";
 
 const COLORS = [
