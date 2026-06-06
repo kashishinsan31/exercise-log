@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { apiFetch } from '../lib/api';
 import { LogOut, Dumbbell, Calendar as CalendarIcon, Loader2, CheckCircle2, List as ListIcon, Activity, Plus, PieChart as ChartIcon, Lock, Trash2 } from 'lucide-react';
-import { ExerciseLog, BodyMeasurement } from '../lib/sheets';
+import { ExerciseLog, BodyMeasurement, fetchExercises, fetchAllClients, doLogin, fetchClientLogs, fetchClientMeasurements, deleteLogRecord, appendLogRecord, appendMeasurement } from '../lib/db';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { ClientDashboard } from './ClientDashboard';
@@ -56,13 +55,9 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     // Fetch global exercises
-    apiFetch('/api/exercises')
-      .then(res => res.json())
-      .then(data => {
-        if(Array.isArray(data)) setExercises(data);
-      })
-      .catch(console.error);
-
+    fetchExercises().then(data => setExercises(data)).catch(console.error);
+    
+    // Auto login check
     const saved = localStorage.getItem('protrainer_session');
     if (saved) {
       try {
@@ -73,36 +68,22 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
           fetchClients(user.email);
           setStep('dashboard');
         }
-      } catch (e) {}
+      } catch(e) {}
     }
   }, []);
 
-  const fetchClients = async (tEmail: string) => {
-    try {
-      const dataRes = await apiFetch(`/api/trainer/clients?trainerEmail=${encodeURIComponent(tEmail)}`);
-      const dataPayload = await dataRes.json();
-      if (!dataRes.ok) throw new Error(dataPayload.error || 'Failed to fetch clients');
-      setClients(dataPayload || []);
-    } catch(err) {
-      console.error(err);
-    }
-  };
+  const fetchClients = async (tEmail: string) => { try { const all = await fetchAllClients(); setClients(all.filter(c => c.trainerEmail === tEmail)); } catch (e) { setErrorMsg('Failed to fetch clients'); } };
 
   const handleLogin = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setIsLoading(true);
-      setErrorMsg('');
+    e.preventDefault();
+    if (!email || !password) return;
+    setIsLoading(true);
+    setErrorMsg('');
 
-      try {
-        const res = await apiFetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim(), password, role: 'trainer' })
-        });
-        
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || 'Invalid credentials');
+    try {
+        const data = await doLogin(email.trim(), password, 'trainer');
+        if (!data.success) {
+          throw new Error('Invalid credentials');
         }
 
         setTrainerName(data.user.name);
@@ -122,12 +103,9 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
     setIsLoadingLogs(true);
     setErrorMsg('');
     try {
-      const dataRes = await apiFetch(`/api/client/data?clientName=${encodeURIComponent(clientName)}`);
-      const dataPayload = await dataRes.json();
-      
-      if (!dataRes.ok) {
-         throw new Error(dataPayload.error || 'Failed to fetch client data');
-      }
+      const logs = await fetchClientLogs(clientName);
+      const measures = await fetchClientMeasurements(clientName);
+      const dataPayload = { logs, measurements: measures };
 
       setClientLogs((dataPayload.logs || []).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       setClientMeasurements((dataPayload.measurements || []).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
@@ -140,13 +118,7 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
 
   const handleDeleteLog = async (log: ExerciseLog) => {
     try {
-      const res = await apiFetch('/api/trainer/log', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(log)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete log.');
+      await deleteLogRecord(log);
       
       // Update local state
       setClientLogs(prev => prev.filter(l => 
@@ -513,13 +485,7 @@ function LoggerForm({
     };
 
     try {
-      const res = await apiFetch('/api/trainer/log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newLog)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to append log.');
+      await deleteLogRecord(log);
       
       onLogAdded(newLog);
       
@@ -671,13 +637,7 @@ function MeasurementForm({
     };
 
     try {
-      const res = await apiFetch('/api/trainer/measurements', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newM)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to append measurement.');
+      await appendMeasurement(newM);
 
       onMeasurementAdded(newM);
       setSuccessMsg(`Logged measurements`);

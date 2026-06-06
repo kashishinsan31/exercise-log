@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { apiFetch } from '../lib/api';
 import { Shield, LogOut, Plus, Users, Dumbbell, Activity, LineChart as LineChartIcon, Loader2, Database, Link as LinkIcon, UserPlus, Trash2 } from 'lucide-react';
-import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, ClientProfile, ExerciseLog, BodyMeasurement, getOrCreateSpreadsheet, addTrainer, addClient } from '../lib/sheets';
-import { getAccessToken, googleSignIn } from '../lib/firebase';
+import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, ClientProfile, ExerciseLog, BodyMeasurement, initializeDatabase, addTrainer, addClient, deleteTrainerRecord, deleteClientRecord } from '../lib/db';
 import { ClientDashboard } from './ClientDashboard';
 
 interface TrackedTrainer {
@@ -54,51 +52,23 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const [clientMeasurements, setClientMeasurements] = useState<BodyMeasurement[]>([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('protrainer_session');
-    if (saved) {
-      try {
-        const { role } = JSON.parse(saved);
-        if (role === 'admin') {
-          setIsAuthenticated(true);
-        }
-      } catch (e) {}
+    const stored = localStorage.getItem('protrainer_db');
+    if (stored) {
+       setDbSpreadsheetId(stored);
+       loadSystemData();
+    } else {
+       setDbInputMode('url');
     }
   }, []);
 
-  useEffect(() => {
-    // Attempt to load db config
-    apiFetch('/api/admin/config')
-       .then(res => res.json())
-       .then(data => {
-         if (data.spreadsheetId) {
-             setDbSpreadsheetId(data.spreadsheetId);
-             loadSystemData(data.spreadsheetId);
-         }
-       })
-       .catch(err => console.log('No backend config loaded.'));
-  }, [isAuthenticated]);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === 'admin123') { // Simple admin password for demo purposes
-      setIsAuthenticated(true);
-      setError(false);
-      localStorage.setItem('protrainer_session', JSON.stringify({ role: 'admin' }));
-    } else {
-      setError(true);
-    }
-  };
-
-  const loadSystemData = async (spreadsheetId: string) => {
+  const loadSystemData = async (spreadsheetId?: string) => {
       try {
-          const res = await apiFetch('/api/admin/systemData');
-          if (!res.ok) throw new Error("Failed to fetch system data from server");
-          const data = await res.json();
-          
-          setTrainers((data.trainers || []).map((t: any) => ({ id: spreadsheetId, name: t.name, email: t.email })));
-          setClients(data.clients || []);
-      } catch (e) {
-          console.error("Failed to load generic system data", e);
+          const tData = await fetchAllTrainers();
+          const cData = await fetchAllClients();
+          setTrainers(tData || []);
+          setClients(cData || []);
+      } catch (err) {
+         console.error('Failed to load system data:', err);
       }
   };
 
@@ -108,65 +78,25 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
     setIsAddingDB(true);
     setAddDBError('');
     try {
-      let accessToken = await getAccessToken();
-      let adminEmail = 'admin';
-      if (!accessToken) {
-        const authResult = await googleSignIn();
-        if (authResult) {
-          accessToken = authResult.accessToken;
-          adminEmail = authResult.user?.email || 'admin';
-        } else {
-          setAddDBError('Google Authorization is required to connect the spreadsheet.');
-          setIsAddingDB(false);
-          return;
-        }
-      }
-
-      let resolvedId = dbUrl.trim();
-      if (!resolvedId) {
-         // Create a brand new ones
-         resolvedId = await getOrCreateSpreadsheet(adminEmail);
-      } else {
-         const urlMatch = resolvedId.match(/\/d\/([a-zA-Z0-9-_]+)/);
-         if (urlMatch && urlMatch[1]) {
-           resolvedId = urlMatch[1];
-         }
-      }
-
-      const configRes = await apiFetch('/api/admin/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spreadsheetId: resolvedId, accessToken })
-      });
-      if (!configRes.ok) {
-         console.warn("Express backend could not be configured.");
-      }
-      
-      setDbSpreadsheetId(resolvedId);
-      await loadSystemData(resolvedId);
+      // Admin initialize
+      localStorage.setItem('protrainer_db', 'firestore-connected');
+      setDbSpreadsheetId('firestore-connected');
+      await loadSystemData();
       setDbInputMode('none');
     } catch (err: any) {
-      setAddDBError('Failed to connect to spreadsheet. Ensure you have access and it is formatted correctly.');
+      console.error(err);
+      setAddDBError(err.message || 'Failed to connect to database.');
     } finally {
       setIsAddingDB(false);
     }
   };
 
-  const handleCreateTrainer = async (e: React.FormEvent) => {
+  const handleAddTrainer = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!dbSpreadsheetId || !newTrainerName || !newTrainerEmail) return;
+      if (!newTrainerName || !newTrainerEmail) return;
       setIsAddingTrainer(true);
       try {
-          const res = await apiFetch('/api/admin/addTrainer', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: newTrainerName, email: newTrainerEmail, password: newTrainerPassword })
-          });
-          if (!res.ok) {
-              const errorText = await res.text();
-              throw new Error(`Failed to append trainer directly from server: ${errorText}`);
-          }
-
+          await addTrainer({ name: newTrainerName, email: newTrainerEmail, password: newTrainerPassword });
           await loadSystemData(dbSpreadsheetId);
           setShowAddTrainer(false);
           setNewTrainerName('');
@@ -184,20 +114,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
       if (!dbSpreadsheetId || !newClientName || !newClientTrainer) return;
       setIsAddingClient(true);
       try {
-          const res = await apiFetch('/api/trainer/addClient', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  name: newClientName,
-                  trainerEmail: newClientTrainer,
-                  password: newClientPassword,
-                  phone: newClientPhone,
-                  dob: newClientDob,
-                  height: newClientHeight
-              })
-          });
-          if (!res.ok) throw new Error("Failed to append client directly from server");
-
+          await addClient({ name: newClientName, trainerEmail: newClientTrainer, phone: newClientPhone, dob: newClientDob, height: newClientHeight, password: newClientPassword});
           await loadSystemData(dbSpreadsheetId);
           setShowAddClient(false);
           setNewClientName('');
@@ -213,88 +130,21 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
       }
   };
 
-  const handleDeleteTrainer = async (e: React.MouseEvent, email: string) => {
-      e.stopPropagation();
-      if (!confirm(`Are you sure you want to delete trainer ${email}?`)) return;
-      try {
-          const res = await apiFetch('/api/admin/deleteTrainer', {
-              method: 'DELETE',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email })
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "Failed to delete trainer");
-          setTrainers(prev => prev.filter(t => t.email !== email));
-          if (selectedTrainer?.email === email) {
-              setSelectedTrainer(null);
-              setTrainerClients([]);
-          }
-      } catch (err: any) {
-          alert(err.message);
-      }
-  };
-
-  const handleDeleteClient = async (e: React.MouseEvent, name: string, trainerEmail: string) => {
-      e.stopPropagation();
-      if (!confirm(`Are you sure you want to delete client ${name}?`)) return;
-      try {
-          const res = await apiFetch('/api/admin/deleteClient', {
-              method: 'DELETE',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name, trainerEmail })
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "Failed to delete client");
-          setClients(prev => prev.filter(c => !(c.name === name && c.trainerEmail === trainerEmail)));
-          if (selectedTrainer?.email === trainerEmail) {
-             setTrainerClients(prev => prev.filter(c => c.name !== name));
-          }
-          if (selectedClient?.name === name) {
-              setSelectedClient(null);
-          }
-      } catch (err: any) {
-          alert(err.message);
-      }
-  };
-
-  const loadTrainerData = async (trainer: TrackedTrainer) => {
+  const handleDeleteTrainer = async (e: React.MouseEvent, email: string) => { e.stopPropagation(); if (!confirm('Are you sure you want to delete trainer ' + email + '?')) return; try { await deleteTrainerRecord(email); setTrainers(prev => prev.filter(t => t.email !== email)); if (selectedTrainer?.email === email) { setSelectedTrainer(null); setTrainerClients([]); } } catch (err: any) { alert(err.message); } }; const handleDeleteClient = async (e: React.MouseEvent, name: string, trainerEmail: string) => { e.stopPropagation(); if (!confirm('Are you sure you want to delete client ' + name + '?')) return; try { await deleteClientRecord(name, trainerEmail); setClients(prev => prev.filter(c => !(c.name === name && c.trainerEmail === trainerEmail))); if (selectedTrainer?.email === trainerEmail) { setTrainerClients(prev => prev.filter(c => c.name !== name)); } if (selectedClient?.name === name) { setSelectedClient(null); } } catch (err: any) { alert(err.message); } };  const loadTrainerData = async (trainer: TrackedTrainer) => {
     setIsLoadingData(true);
     setSelectedTrainer(trainer);
     setSelectedClient(null);
-    try {
-      let accessToken = await getAccessToken();
-      if (!accessToken) {
-        const authResult = await googleSignIn();
-        if (authResult) accessToken = authResult.accessToken;
-      }
-      
-      // In single DB mode, we fetch all, then filter by the selected trainer's email
-      const allClients = await fetchAllClients(trainer.id);
-      const filtered = allClients.filter(c => c.trainerEmail === trainer.email);
-      setTrainerClients(filtered);
-    } catch (err) {
-      console.error(err);
-      setTrainerClients([]);
-    } finally {
-      setIsLoadingData(false);
-    }
+    setTrainerClients(clients.filter(c => c.trainerEmail === trainer.email));
+    setActiveTab('trainers');
+    setIsLoadingData(false);
   };
 
   const loadClientData = async (client: ClientProfile) => {
-    if (!selectedTrainer) return;
     setIsLoadingData(true);
     setSelectedClient(client);
     try {
-      let accessToken = await getAccessToken();
-      if (!accessToken) {
-        const authResult = await googleSignIn();
-        if (authResult) accessToken = authResult.accessToken;
-      }
-
-      const [logs, measurements] = await Promise.all([
-        fetchClientLogs(selectedTrainer.id, client.name),
-        fetchClientMeasurements(selectedTrainer.id, client.name)
-      ]);
+      const logs = await fetchClientLogs(client.name);
+      const measurements = await fetchClientMeasurements(client.name);
       setClientLogs(logs);
       setClientMeasurements(measurements);
     } catch (err) {

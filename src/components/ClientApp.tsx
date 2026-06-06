@@ -1,15 +1,6 @@
 import React, { useState } from 'react';
-import { apiFetch } from '../lib/api';
+import { doLogin, fetchClientLogs, fetchClientMeasurements, appendMeasurement, ExerciseLog, BodyMeasurement, ClientProfile } from '../lib/db';
 import { Loader2, Dumbbell, ArrowLeft, Lock, FileText, Activity, User, PlusCircle } from 'lucide-react';
-import { 
-  fetchAllClients, 
-  fetchClientLogs, 
-  fetchClientMeasurements, 
-  appendMeasurement,
-  ExerciseLog, 
-  ClientProfile, 
-  BodyMeasurement 
-} from '../lib/sheets';
 import { ClientDashboard } from './ClientDashboard';
 
 export function ClientApp({ onBack }: { onBack: () => void }) {
@@ -60,54 +51,34 @@ export function ClientApp({ onBack }: { onBack: () => void }) {
 
   const fetchClientData = async (name: string) => {
     try {
-      const dataRes = await apiFetch(`/api/client/data?clientName=${encodeURIComponent(name)}`);
-      const dataPayload = await dataRes.json();
-      if (dataRes.ok) {
-        setClientLogs(dataPayload.logs || []);
-        setClientMeasurements(dataPayload.measurements || []);
-      }
-    } catch(err) {
-      console.error(err);
+      const logs = await fetchClientLogs(name); 
+      const measurements = await fetchClientMeasurements(name); 
+      const dataPayload = { logs, measurements };
+      setClientLogs(dataPayload.logs || []);
+      setClientMeasurements(dataPayload.measurements || []);
+      setStep('dashboard');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to fetch client data.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setIsLoading(true);
-      setErrorMsg('');
+    e.preventDefault();
+    if (!email || !password) return;
+    setIsLoading(true);
+    setErrorMsg('');
 
-      try {
-        const res = await apiFetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim(), password, role: 'client' })
-        });
-        
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || 'Invalid credentials');
-        }
-
-        setSelectedClient(data.user);
-        
-        localStorage.setItem('protrainer_session', JSON.stringify({ role: 'client', user: data.user }));
-        
-        // Fetch securely filtered data using name
-        const dataRes = await apiFetch(`/api/client/data?clientName=${encodeURIComponent(data.user.name)}`);
-        const dataPayload = await dataRes.json();
-        
-        if (!dataRes.ok) {
-           console.log(dataPayload.error || 'Failed to fetch your data');
-        }
-
-        setClientLogs(dataPayload.logs || []);
-        setClientMeasurements(dataPayload.measurements || []);
-        setStep('dashboard');
-      } catch (err: any) {
-        setErrorMsg(err.message || 'Login failed. Note: The Admin must configure the master database first.');
-      } finally {
-        setIsLoading(false);
-      }
+    try {
+      const data = await doLogin(email.trim(), password, 'client');
+      setSelectedClient(data.user);
+      localStorage.setItem('protrainer_session', JSON.stringify({ role: 'client', user: data.user }));
+      await fetchClientData(data.user.name);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Login failed. Invalid credentials.');
+      setIsLoading(false);
+    }
   };
 
   const handleAddMeasurement = async (e: React.FormEvent) => {
@@ -130,10 +101,8 @@ export function ClientApp({ onBack }: { onBack: () => void }) {
         arms
       };
       
-      // We no longer append directly here via sheet to keep frontend secure.
-      // Instead we mock the save in state for the preview since setting up Auth 
-      // token proxying for backend writes requires more robust session handling.
-      // await appendMeasurement(spreadsheetId, newM);
+      // Use Firestore
+      await appendMeasurement(newM);
 
       setClientMeasurements([newM, ...clientMeasurements]);
       setCurrentView('dashboard');
