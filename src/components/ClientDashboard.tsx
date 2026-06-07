@@ -37,6 +37,7 @@ interface ClientDashboardProps {
 
 export function ClientDashboard({ clientName, logs, measurements = [] }: ClientDashboardProps) {
   const [selectedExerciseFilter, setSelectedExerciseFilter] = useState<string>("");
+  const [selectedMetric, setSelectedMetric] = useState<'volume' | 'weight' | 'reps'>("volume");
 
   React.useEffect(() => {
     if (!selectedExerciseFilter && logs.length > 0) {
@@ -52,7 +53,7 @@ export function ClientDashboard({ clientName, logs, measurements = [] }: ClientD
     const muscleGroupCount: Record<string, number> = {};
     const exercisesCount: Record<string, number> = {};
     const volumeByDate: Record<string, number> = {};
-    const specificExerciseByWeek: Record<string, number> = {};
+    const specificExerciseStats: Record<string, { volume: number, weight: number, reps: number }> = {};
 
     logs.forEach((log) => {
       const sets = parseInt(log.sets) || 0;
@@ -71,7 +72,10 @@ export function ClientDashboard({ clientName, logs, measurements = [] }: ClientD
       if (log.date && log.exercise === selectedExerciseFilter) {
          try {
            const weekStart = format(startOfWeek(parseISO(log.date), { weekStartsOn: 1 }), 'yyyy-MM-dd');
-           specificExerciseByWeek[weekStart] = (specificExerciseByWeek[weekStart] || 0) + volume;
+           if (!specificExerciseStats[weekStart]) specificExerciseStats[weekStart] = { volume: 0, weight: 0, reps: 0 };
+           specificExerciseStats[weekStart].volume += volume;
+           specificExerciseStats[weekStart].weight = Math.max(specificExerciseStats[weekStart].weight, weight);
+           specificExerciseStats[weekStart].reps = Math.max(specificExerciseStats[weekStart].reps, reps);
          } catch (e) {}
       }
     });
@@ -91,9 +95,11 @@ export function ClientDashboard({ clientName, logs, measurements = [] }: ClientD
       rawDate: parseISO(date).getTime(),
     })).sort((a, b) => a.rawDate - b.rawDate);
       
-    const specificExerciseData = Object.keys(specificExerciseByWeek).map((weekStart) => ({
+    const specificExerciseData = Object.keys(specificExerciseStats).map((weekStart) => ({
       date: format(parseISO(weekStart), "MMM d"),
-      volume: specificExerciseByWeek[weekStart],
+      volume: specificExerciseStats[weekStart].volume,
+      weight: specificExerciseStats[weekStart].weight,
+      reps: specificExerciseStats[weekStart].reps,
       rawDate: parseISO(weekStart).getTime(),
     })).sort((a, b) => a.rawDate - b.rawDate);
 
@@ -219,6 +225,56 @@ export function ClientDashboard({ clientName, logs, measurements = [] }: ClientD
           ) : (
             <div className="h-full flex items-center justify-center text-sm text-[#8e8e93]">No recent measurements</div>
           )}
+        </div>
+      </div>
+
+      {/* Exercise Progress chart */}
+      <div className="bg-[#1C1C1E] rounded-3xl p-6 border border-white/5">
+        <div className="mb-4">
+          <h3 className="text-white font-bold text-lg flex items-center gap-2 mb-2">
+            <Dumbbell className="w-4 h-4 text-[#AF52DE]" /> Exercise Progress
+          </h3>
+          {stats.uniqueExercises.length > 0 ? (
+            <div className="flex gap-2">
+              <select 
+                value={selectedExerciseFilter}
+                onChange={(e) => setSelectedExerciseFilter(e.target.value)}
+                className="bg-[#0A0A0C] border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none focus:border-[#AF52DE] flex-1 min-w-0"
+              >
+                 {stats.uniqueExercises.map(ex => <option key={ex} value={ex}>{ex}</option>)}
+              </select>
+              <select 
+                value={selectedMetric}
+                onChange={(e) => setSelectedMetric(e.target.value as any)}
+                className="bg-[#0A0A0C] border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none focus:border-[#AF52DE] w-28 shrink-0"
+              >
+                 <option value="volume">Volume</option>
+                 <option value="weight">Max Wt</option>
+                 <option value="reps">Max Reps</option>
+              </select>
+            </div>
+          ) : (
+            <p className="text-sm text-[#8e8e93]">No exercises logged yet.</p>
+          )}
+        </div>
+
+        <div className="h-[200px] w-full">
+          {stats.specificExerciseData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={stats.specificExerciseData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorExercise" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#AF52DE" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#AF52DE" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#8e8e93" }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#8e8e93" }} tickFormatter={(val) => val > 1000 ? `${(val / 1000).toFixed(0)}k` : val} />
+                <Tooltip cursor={{ stroke: 'rgba(255,255,255,0.1)' }} contentStyle={{ backgroundColor: '#000', borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", color: '#fff' }} />
+                <Area type="monotone" dataKey={selectedMetric} stroke="#AF52DE" strokeWidth={3} fillOpacity={1} fill="url(#colorExercise)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : null}
         </div>
       </div>
 

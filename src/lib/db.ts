@@ -13,6 +13,21 @@ export type ClientProfile = {
 export type TrackedTrainer = {
   name: string;
   email: string;
+  phone?: string;
+  password?: string;
+};
+
+export type TrainerReview = {
+  id?: string;
+  clientName: string;
+  trainerEmail: string;
+  date: string;
+  rating: number; // Overall
+  punctuality: number;
+  professionalism: number;
+  knowledge: number;
+  communication: number;
+  feedbackText: string;
 };
 
 export type ExerciseLog = {
@@ -27,6 +42,7 @@ export type ExerciseLog = {
 };
 
 export type BodyMeasurement = {
+  id?: string;
   date: string;
   clientName: string;
   chest: string;
@@ -69,8 +85,16 @@ export async function appendMeasurement(measurement: BodyMeasurement) {
 export async function fetchClientMeasurements(clientName: string) {
   const q = query(collection(db, "measurements"), where("clientName", "==", clientName));
   const snap = await getDocs(q);
-  const data = snap.docs.map(d => d.data() as BodyMeasurement);
+  const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as BodyMeasurement));
   return data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+export async function deleteMeasurement(id: string) {
+  await deleteDoc(doc(db, "measurements", id));
+}
+
+export async function updateMeasurement(id: string, updates: Partial<BodyMeasurement>) {
+  await updateDoc(doc(db, "measurements", id), updates);
 }
 
 export async function appendLogRecord(log: ExerciseLog) {
@@ -94,18 +118,19 @@ export async function fetchClientLogs(clientName: string) {
 
 export async function fetchAllTrainers() {
   const snap = await getDocs(collection(db, "trainers"));
-  return snap.docs.map(d => ({ name: d.data().name as string, email: d.data().email as string }));
+  return snap.docs.map(d => ({ name: d.data().name as string, email: d.data().email as string, phone: d.data().phone as string }));
 }
 
-export async function addTrainer(trainerProfile: { name: string; email: string; password?: string }) {
+export async function addTrainer(trainerProfile: { name: string; email: string; phone?: string; password?: string }) {
   await setDoc(doc(db, "trainers", trainerProfile.email.toLowerCase()), {
       name: trainerProfile.name,
       email: trainerProfile.email.toLowerCase(),
+      phone: trainerProfile.phone || "",
       password: trainerProfile.password || "",
   });
 }
 
-export async function updateTrainer(email: string, trainerProfile: Partial<{ name: string; password?: string }>) {
+export async function updateTrainer(email: string, trainerProfile: Partial<{ name: string; phone?: string; password?: string }>) {
   await updateDoc(doc(db, "trainers", email.toLowerCase()), trainerProfile);
 }
 
@@ -136,6 +161,23 @@ export async function deleteClientRecord(name: string, trainerEmail: string) {
 export async function fetchExercises() {
    const snap = await getDocs(collection(db, "exercises"));
    return snap.docs.map(d => ({ id: d.id, name: d.data().name as string, group: d.data().group as string }));
+}
+
+export async function addTrainerReview(review: Omit<TrainerReview, 'id'>) {
+  await addDoc(collection(db, "trainer_reviews"), review);
+}
+
+export async function fetchTrainerReviews(trainerEmail: string) {
+  const q = query(collection(db, "trainer_reviews"), where("trainerEmail", "==", trainerEmail));
+  const snap = await getDocs(q);
+  const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as TrainerReview));
+  return data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+export async function fetchAllTrainerReviews() {
+  const snap = await getDocs(collection(db, "trainer_reviews"));
+  const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as TrainerReview));
+  return data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export async function addExerciseRecord(exercise: { name: string; group: string }) {

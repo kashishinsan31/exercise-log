@@ -1,17 +1,18 @@
 import React from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface MobileNativeLayoutProps {
   children: React.ReactNode;
   onBack?: () => void;
+  onLogout?: () => void;
   title?: string;
   subtitle?: string;
   bottomNav?: React.ReactNode;
   headerRight?: React.ReactNode;
 }
 
-export function MobileNativeLayout({ children, onBack, title, subtitle, bottomNav, headerRight }: MobileNativeLayoutProps) {
+export function MobileNativeLayout({ children, onBack, onLogout, title, subtitle, bottomNav, headerRight }: MobileNativeLayoutProps) {
   return (
     <div className="fixed inset-0 bg-black flex justify-center items-center p-0 md:p-8 z-50 font-sans">
       <div className="w-full h-full md:w-[400px] md:h-[800px] md:max-h-[90vh] bg-[#0A0A0C] text-white md:rounded-[3rem] relative overflow-hidden shadow-2xl md:border-[8px] border-[#1A1A1D] flex flex-col">
@@ -24,10 +25,14 @@ export function MobileNativeLayout({ children, onBack, title, subtitle, bottomNa
         {/* Header content */}
         <div className="px-6 pt-14 pb-4 flex justify-between items-center z-10 bg-gradient-to-b from-[#0A0A0C] to-transparent shrink-0">
           <div className="flex items-center gap-3">
-             {onBack && (
+             {onBack ? (
                <button onClick={onBack} className="w-10 h-10 bg-[#1C1C1E] rounded-full flex items-center justify-center relative overflow-hidden shrink-0">
                   <ChevronLeft className="w-5 h-5 text-white/80" />
                </button>
+             ) : (
+               <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shrink-0 overflow-hidden relative shadow-md">
+                 <img src="/logo.png" alt="Logo" className="w-full h-full object-cover outline-none border-none" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+               </div>
              )}
              <motion.div 
                initial={{ opacity: 0, x: -10 }}
@@ -38,11 +43,14 @@ export function MobileNativeLayout({ children, onBack, title, subtitle, bottomNa
                {title && <h1 className="text-2xl font-bold tracking-tight line-clamp-1">{title}</h1>}
              </motion.div>
           </div>
-          {headerRight && (
-            <div className="flex items-center gap-3 shrink-0 ml-2">
-               {headerRight}
-            </div>
-          )}
+          <div className="flex items-center gap-3 shrink-0 ml-2">
+             {headerRight}
+             {onLogout && (
+               <button onClick={onLogout} className="w-10 h-10 bg-[#FF3B30]/10 hover:bg-[#FF3B30]/20 rounded-full flex items-center justify-center text-[#FF3B30] transition-colors shadow-sm">
+                  <LogOut className="w-4 h-4 ml-0.5" />
+               </button>
+             )}
+          </div>
         </div>
 
         {/* Scrollable Content Area */}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Dumbbell, Calendar as CalendarIcon, Loader2, CheckCircle2, List as ListIcon, Activity, Plus, PieChart as ChartIcon, Lock, Trash2, Users } from 'lucide-react';
-import { ExerciseLog, BodyMeasurement, fetchExercises, fetchAllClients, doLogin, fetchClientLogs, fetchClientMeasurements, deleteLogRecord, appendLogRecord, appendMeasurement } from '../lib/db';
+import { LogOut, Dumbbell, Calendar as CalendarIcon, Loader2, CheckCircle2, List as ListIcon, Activity, Plus, PieChart as ChartIcon, Lock, Trash2, Users, Star, Settings } from 'lucide-react';
+import { ExerciseLog, BodyMeasurement, TrainerReview, fetchExercises, fetchAllClients, doLogin, fetchClientLogs, fetchClientMeasurements, deleteLogRecord, appendLogRecord, appendMeasurement, deleteMeasurement, updateMeasurement, fetchTrainerReviews, updateTrainer } from '../lib/db';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { ClientDashboard } from './ClientDashboard';
@@ -48,9 +48,37 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
   const [selectedClient, setSelectedClient] = useState('');
   const [clientLogs, setClientLogs] = useState<ExerciseLog[]>([]);
   const [clientMeasurements, setClientMeasurements] = useState<BodyMeasurement[]>([]);
+  const [trainerReviews, setTrainerReviews] = useState<TrainerReview[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'clients' | 'dashboard' | 'logs' | 'measurements'>('clients');
+  const [activeTab, setActiveTab] = useState<'clients' | 'dashboard' | 'logs' | 'measurements' | 'reviews' | 'settings'>('clients');
+
+  // Password state
+  const [newPassword, setNewPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+      e.preventDefault();
+      const session = localStorage.getItem('protrainer_session');
+      if (!session || !newPassword) return;
+      const { user } = JSON.parse(session);
+      if (!user || user.role !== 'trainer') {
+         // Fallback
+      }
+      setIsChangingPassword(true);
+      setErrorMsg('');
+      setPasswordSuccess('');
+      try {
+          await updateTrainer(user.email, { password: newPassword });
+          setPasswordSuccess('Password updated successfully.');
+          setNewPassword('');
+      } catch (err: any) {
+          setErrorMsg('Failed to update password.');
+      } finally {
+          setIsChangingPassword(false);
+      }
+  };
 
   useEffect(() => {
     fetchExercises().then(data => setExercises(data)).catch(console.error);
@@ -69,7 +97,27 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
     }
   }, []);
 
-  const fetchClients = async (tEmail: string) => { try { const all = await fetchAllClients(); setClients(all.filter(c => c.trainerEmail === tEmail)); } catch (e) { setErrorMsg('Failed to fetch clients'); } };
+  const fetchClients = async (tEmail: string) => { 
+      try { 
+          const all = await fetchAllClients(); 
+          setClients(all.filter(c => c.trainerEmail === tEmail)); 
+          const reviews = await fetchTrainerReviews(tEmail);
+          setTrainerReviews(reviews);
+      } catch (e) { 
+          setErrorMsg('Failed to fetch clients or reviews'); 
+      } 
+  };
+
+  const handleDeleteMeasurement = async (m: BodyMeasurement) => {
+      if (!m.id) return;
+      if (!confirm('Are you sure you want to delete this measurement?')) return;
+      try {
+          await deleteMeasurement(m.id);
+          setClientMeasurements(prev => prev.filter(x => x.id !== m.id));
+      } catch (err: any) {
+          setErrorMsg('Failed to delete measurement.');
+      }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,7 +182,7 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
 
   if (step === 'login') {
     return (
-      <MobileNativeLayout onBack={onBack} title="Trainer Login">
+      <MobileNativeLayout onBack={onBack}>
         <div className="flex flex-col items-center justify-center mt-8 mb-12">
           <div className="w-20 h-20 bg-[#1C1C1E] rounded-[2rem] flex items-center justify-center mb-6 shadow-[0_8px_32px_rgba(0,122,255,0.2)]">
             <Dumbbell className="w-10 h-10 text-[#007AFF]" />
@@ -195,13 +243,15 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
     <MobileNativeLayout
       title={trainerName}
       subtitle={selectedClient || "Select a Client"}
-      onBack={() => { localStorage.removeItem('protrainer_session'); setStep('login'); setEmail(''); setPassword(''); onBack(); }}
+      onLogout={() => { localStorage.removeItem('protrainer_session'); setStep('login'); setEmail(''); setPassword(''); onBack(); }}
       bottomNav={
         <>
           <MobileTabItem icon={<Users />} label="Clients" isActive={activeTab === 'clients'} onClick={() => setActiveTab('clients')} activeColor="text-[#007AFF]" />
           {selectedClient && <MobileTabItem icon={<Activity />} label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} activeColor="text-[#007AFF]" />}
           {selectedClient && <MobileTabItem icon={<ListIcon />} label="Logs" isActive={activeTab === 'logs'} onClick={() => setActiveTab('logs')} activeColor="text-[#007AFF]" />}
           {selectedClient && <MobileTabItem icon={<Plus />} label="Metrics" isActive={activeTab === 'measurements'} onClick={() => setActiveTab('measurements')} activeColor="text-[#007AFF]" />}
+          <MobileTabItem icon={<Star />} label="Reviews" isActive={activeTab === 'reviews'} onClick={() => setActiveTab('reviews')} activeColor="text-[#007AFF]" />
+          <MobileTabItem icon={<Settings />} label="Settings" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} activeColor="text-[#007AFF]" />
         </>
       }
     >
@@ -292,6 +342,9 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
                 <div key={idx} className="bg-[#1C1C1E] rounded-2xl p-4 border border-white/5">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-[#8e8e93] text-xs font-semibold uppercase">{format(new Date(m.date), 'MMMM d, yyyy')}</span>
+                    {m.id && (
+                       <button onClick={() => handleDeleteMeasurement(m)} className="p-1 text-[#8e8e93] hover:text-[#FF3B30]"><Trash2 className="w-4 h-4" /></button>
+                    )}
                   </div>
                   <div className="grid grid-cols-4 gap-2">
                     <div><span className="text-[10px] text-[#8e8e93] uppercase">Weight</span><p className="text-white font-bold">{m.weight}</p></div>
@@ -303,6 +356,76 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
               ))
             )}
           </div>
+        </div>
+      )}
+
+      {selectedClient && activeTab === 'reviews' && (
+        <div className="space-y-4 pb-20">
+          <h3 className="text-white font-bold text-lg mb-4 mt-6">Client Reviews</h3>
+          {trainerReviews.length === 0 ? (
+             <div className="text-center text-[#8e8e93] bg-[#1C1C1E] p-8 rounded-3xl border border-white/5">No reviews yet.</div>
+          ) : (
+             trainerReviews.map((rev, idx) => (
+              <div key={idx} className="bg-[#1C1C1E] rounded-2xl p-5 border border-white/5 space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="text-white font-bold">{rev.clientName}</div>
+                    <div className="text-[#8e8e93] text-xs mt-0.5">{new Date(rev.date).toLocaleDateString()}</div>
+                  </div>
+                  <div className="flex items-center gap-1 bg-[#34C759]/10 px-2 flex-col rounded-lg">
+                    <span className="text-lg font-bold text-[#34C759] leading-none mt-2">{rev.rating}</span>
+                    <span className="text-[10px] text-[#34C759] uppercase font-bold tracking-wider mb-1">Overall</span>
+                  </div>
+                </div>
+                <p className="text-sm text-white/80 italic">"{rev.feedbackText}"</p>
+                <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-3">
+                  <div className="flex justify-between items-center"><span className="text-[#8e8e93] text-xs">Punctuality</span><span className="text-white font-medium text-xs">{rev.punctuality}/5</span></div>
+                  <div className="flex justify-between items-center"><span className="text-[#8e8e93] text-xs">Professionalism</span><span className="text-white font-medium text-xs">{rev.professionalism}/5</span></div>
+                  <div className="flex justify-between items-center"><span className="text-[#8e8e93] text-xs">Knowledge</span><span className="text-white font-medium text-xs">{rev.knowledge}/5</span></div>
+                  <div className="flex justify-between items-center"><span className="text-[#8e8e93] text-xs">Communication</span><span className="text-white font-medium text-xs">{rev.communication}/5</span></div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'settings' && (
+        <div className="bg-[#1C1C1E] rounded-3xl p-6 border border-white/5 pb-24 mt-6">
+          <h3 className="text-lg font-bold text-white mb-2">Account Settings</h3>
+          <p className="text-[#8e8e93] text-sm mb-6">Manage your security preferences.</p>
+
+          <form onSubmit={handlePasswordChange} className="space-y-4">
+             {errorMsg && (
+               <div className="p-3 bg-red-500/20 text-[#FF3B30] rounded-xl text-sm font-medium">
+                 {errorMsg}
+               </div>
+             )}
+             {passwordSuccess && (
+               <div className="p-3 bg-green-500/20 text-[#34C759] rounded-xl text-sm font-medium">
+                 {passwordSuccess}
+               </div>
+             )}
+             <div>
+                <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">New Password</label>
+                <input 
+                  type="password" 
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  required
+                  placeholder="Enter new password"
+                  className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-2xl px-4 py-4 outline-none focus:border-[#007AFF] transition-all"
+                />
+             </div>
+
+             <button 
+               type="submit" 
+               disabled={isChangingPassword}
+               className="w-full mt-4 bg-[#007AFF] text-white font-bold py-4 rounded-xl transition-transform active:scale-95 disabled:opacity-50 flex items-center justify-center"
+             >
+               {isChangingPassword ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Update Password'}
+             </button>
+          </form>
         </div>
       )}
     </MobileNativeLayout>

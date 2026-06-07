@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, LogOut, Plus, Users, Dumbbell, Activity, LineChart as LineChartIcon, Loader2, Database, Link as LinkIcon, UserPlus, Trash2, Edit2, X, Check, Search, Menu } from 'lucide-react';
-import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, fetchExercises, addExerciseRecord, deleteExerciseRecord, ClientProfile, ExerciseLog, BodyMeasurement, initializeDatabase, addTrainer, addClient, deleteTrainerRecord, deleteClientRecord, updateTrainer, updateClient } from '../lib/db';
+import { Shield, LogOut, Plus, Users, Dumbbell, Activity, LineChart as LineChartIcon, Loader2, Database, Link as LinkIcon, UserPlus, Trash2, Edit2, X, Check, Search, Menu, Star } from 'lucide-react';
+import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, fetchExercises, addExerciseRecord, deleteExerciseRecord, ClientProfile, ExerciseLog, BodyMeasurement, initializeDatabase, addTrainer, addClient, deleteTrainerRecord, deleteClientRecord, updateTrainer, updateClient, TrainerReview, fetchAllTrainerReviews } from '../lib/db';
 import { ClientDashboard } from './ClientDashboard';
 import { MobileNativeLayout, MobileTabItem } from './MobileNativeLayout';
 
@@ -21,13 +21,14 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'trainers' | 'clients' | 'exercises' | 'overview'>('trainers');
+  const [activeTab, setActiveTab] = useState<'trainers' | 'clients' | 'exercises' | 'overview' | 'reviews'>('trainers');
 
   // Dash State
   const [dbSpreadsheetId, setDbSpreadsheetId] = useState<string>('');
   const [trainers, setTrainers] = useState<TrackedTrainer[]>([]);
   const [clients, setClients] = useState<ClientProfile[]>([]);
   const [exercises, setExercises] = useState<ExerciseItem[]>([]);
+  const [allReviews, setAllReviews] = useState<TrainerReview[]>([]);
   
   const [isAddingDB, setIsAddingDB] = useState(false);
   const [addDBError, setAddDBError] = useState('');
@@ -38,6 +39,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const [showAddTrainer, setShowAddTrainer] = useState(false);
   const [newTrainerName, setNewTrainerName] = useState('');
   const [newTrainerEmail, setNewTrainerEmail] = useState('');
+  const [newTrainerPhone, setNewTrainerPhone] = useState('');
   const [newTrainerPassword, setNewTrainerPassword] = useState('');
   const [isAddingTrainer, setIsAddingTrainer] = useState(false);
   
@@ -60,6 +62,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   // Edit Trainer State
   const [editingTrainerEmail, setEditingTrainerEmail] = useState<string | null>(null);
   const [editTrainerName, setEditTrainerName] = useState('');
+  const [editTrainerPhone, setEditTrainerPhone] = useState('');
   const [editTrainerPassword, setEditTrainerPassword] = useState('');
 
   // Edit Client State
@@ -105,9 +108,11 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
           const tData = await fetchAllTrainers();
           const cData = await fetchAllClients();
           const eData = await fetchExercises();
+          const rData = await fetchAllTrainerReviews();
           setTrainers(tData || []);
           setClients(cData || []);
           setExercises(eData || []);
+          setAllReviews(rData || []);
           setAddDBError('');
       } catch (err: any) {
          console.error('Failed to load system data:', err);
@@ -136,14 +141,15 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
 
   const handleAddTrainer = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!newTrainerName || !newTrainerEmail) return;
+      if (!newTrainerName || !newTrainerEmail || !newTrainerPhone) return;
       setIsAddingTrainer(true);
       try {
-          await addTrainer({ name: newTrainerName, email: newTrainerEmail, password: newTrainerPassword });
+          await addTrainer({ name: newTrainerName, email: newTrainerEmail, phone: newTrainerPhone, password: newTrainerPassword });
           await loadSystemData(dbSpreadsheetId);
           setShowAddTrainer(false);
           setNewTrainerName('');
           setNewTrainerEmail('');
+          setNewTrainerPhone('');
           setNewTrainerPassword('');
       } catch (err: any) {
           alert('Error adding trainer: ' + err.message);
@@ -210,7 +216,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
       e.stopPropagation();
       e.preventDefault();
       try {
-          await updateTrainer(email, { name: editTrainerName, password: editTrainerPassword });
+          await updateTrainer(email, { name: editTrainerName, phone: editTrainerPhone, password: editTrainerPassword });
           setEditingTrainerEmail(null);
           await loadSystemData(dbSpreadsheetId);
       } catch (err: any) {
@@ -256,7 +262,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
 
   if (!isAuthenticated) {
     return (
-      <MobileNativeLayout onBack={onBack} title="Admin Login">
+      <MobileNativeLayout onBack={onBack}>
         <div className="flex flex-col items-center justify-center mt-8 mb-12">
           <div className="w-20 h-20 bg-[#1C1C1E] rounded-[2rem] flex items-center justify-center mb-6 shadow-[0_8px_32px_rgba(255,59,48,0.2)]">
             <Shield className="w-10 h-10 text-[#FF3B30]" />
@@ -349,12 +355,13 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
     <MobileNativeLayout
       title="Admin Portal"
       subtitle="System Overview"
-      onBack={() => setIsAuthenticated(false)}
+      onLogout={() => { setIsAuthenticated(false); onBack(); }}
       bottomNav={
         <>
           <MobileTabItem icon={<Dumbbell />} label="Trainers" isActive={activeTab === 'trainers'} onClick={() => setActiveTab('trainers')} activeColor="text-[#FF3B30]" />
           <MobileTabItem icon={<Users />} label="Clients" isActive={activeTab === 'clients'} onClick={() => setActiveTab('clients')} activeColor="text-[#FF3B30]" />
           <MobileTabItem icon={<Activity />} label="Exercises" isActive={activeTab === 'exercises'} onClick={() => setActiveTab('exercises')} activeColor="text-[#FF3B30]" />
+          <MobileTabItem icon={<Star />} label="Reviews" isActive={activeTab === 'reviews'} onClick={() => setActiveTab('reviews')} activeColor="text-[#FF3B30]" />
         </>
       }
     >
@@ -391,6 +398,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                 <h4 className="text-xs font-bold text-[#8e8e93] uppercase tracking-wider mb-2">New Trainer</h4>
                 <input type="text" placeholder="Name" value={newTrainerName} onChange={e => setNewTrainerName(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#FF3B30]" />
                 <input type="email" placeholder="Email" value={newTrainerEmail} onChange={e => setNewTrainerEmail(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#FF3B30]" />
+                <input type="tel" placeholder="Mobile Number (Unique Identity)" value={newTrainerPhone} onChange={e => setNewTrainerPhone(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#FF3B30]" />
                 <input type="password" placeholder="Password (Optional)" value={newTrainerPassword} onChange={e => setNewTrainerPassword(e.target.value)} className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#FF3B30]" />
                 <button type="submit" disabled={isAddingTrainer} className="w-full bg-[#FF3B30] text-white font-bold py-3 rounded-xl flex justify-center items-center mt-2 disabled:opacity-50">
                   {isAddingTrainer ? <Loader2 className="w-5 h-5 animate-spin"/> : 'Add Trainer'}
@@ -411,8 +419,12 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                           <input type="text" placeholder="Name" value={editTrainerName} onChange={e => setEditTrainerName(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#FF3B30] outline-none" />
                         </div>
                         <div className="space-y-1">
+                          <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Mobile No.</label>
+                          <input type="tel" placeholder="Mobile Number" value={editTrainerPhone} onChange={e => setEditTrainerPhone(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#FF3B30] outline-none" />
+                        </div>
+                        <div className="space-y-1">
                           <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Account Password</label>
-                          <input type="password" placeholder="Leave blank to keep current" value={editTrainerPassword} onChange={e => setEditTrainerPassword(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#FF3B30] outline-none" />
+                          <input type="text" placeholder="Leave blank to keep current" value={editTrainerPassword} onChange={e => setEditTrainerPassword(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#FF3B30] outline-none" />
                         </div>
                         <div className="flex gap-2 justify-end mt-2">
                           <button onClick={() => setEditingTrainerEmail(null)} className="px-4 py-2 border border-[#8e8e93]/30 text-[#8e8e93] text-sm font-bold rounded-lg hover:text-white hover:bg-white/5 transition-colors">Cancel</button>
@@ -434,7 +446,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                         <Activity className="w-5 h-5 text-[#8e8e93]" />
                       </div>
                       <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-white/5">
-                        <button onClick={(e) => { e.stopPropagation(); setEditingTrainerEmail(t.email); setEditTrainerName(t.name); setEditTrainerPassword(''); }} className="p-2 text-[#8e8e93] hover:text-white transition-colors"><Edit2 className="w-4 h-4" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); setEditingTrainerEmail(t.email); setEditTrainerName(t.name); setEditTrainerPhone(t.phone || ''); setEditTrainerPassword(''); }} className="p-2 text-[#8e8e93] hover:text-white transition-colors"><Edit2 className="w-4 h-4" /></button>
                         <button onClick={(e) => handleDeleteTrainer(e, t.email)} className="p-2 text-[#8e8e93] hover:text-[#FF3B30] transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </>
@@ -466,7 +478,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                   <option value="" disabled>Assign to Trainer...</option>
                   {trainers.map(t => <option key={t.email} value={t.email}>{t.name} ({t.email})</option>)}
                 </select>
-                <input type="text" placeholder="Phone" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
+                <input type="tel" placeholder="Mobile Number (Unique Identity)" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
                 <input type="date" placeholder="DOB" value={newClientDob} onChange={e => setNewClientDob(e.target.value)} className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
                 <input type="text" placeholder="Height" value={newClientHeight} onChange={e => setNewClientHeight(e.target.value)} className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
                 <input type="password" placeholder="Password (Optional)" value={newClientPassword} onChange={e => setNewClientPassword(e.target.value)} className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
@@ -490,8 +502,8 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                        </div>
                        <div className="grid grid-cols-2 gap-3">
                          <div className="space-y-1">
-                           <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Phone</label>
-                           <input type="text" placeholder="Phone" value={editClientPhone} onChange={e => setEditClientPhone(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#007AFF] outline-none" />
+                           <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Mobile No.</label>
+                           <input type="tel" placeholder="Mobile Number" value={editClientPhone} onChange={e => setEditClientPhone(e.target.value)} required className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#007AFF] outline-none" />
                          </div>
                          <div className="space-y-1">
                            <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Date of Birth</label>
@@ -505,7 +517,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                          </div>
                          <div className="space-y-1">
                            <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Account Password</label>
-                           <input type="password" placeholder="Leave blank to keep" value={editClientPassword} onChange={e => setEditClientPassword(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#007AFF] outline-none" />
+                           <input type="text" placeholder="Leave blank to keep" value={editClientPassword} onChange={e => setEditClientPassword(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#007AFF] outline-none" />
                          </div>
                        </div>
                        <div className="flex gap-2 justify-end mt-2">
@@ -520,7 +532,12 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                        <div className="text-[#8e8e93] text-xs font-medium mt-1 uppercase">Trainer: <span className="text-[#007AFF]">{assignedTrainer ? assignedTrainer.name : c.trainerEmail}</span></div>
                      </div>
                      <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-white/5">
-                       <button onClick={(e) => { e.stopPropagation(); setEditingClientKey(cKey); setEditClientPhone(c.phone || ''); setEditClientDob(c.dob || ''); setEditClientHeight(c.height || ''); setEditClientPassword(''); }} className="p-2 text-[#8e8e93] hover:text-white transition-colors"><Edit2 className="w-4 h-4" /></button>
+                       <button onClick={(e) => {
+                         e.stopPropagation();
+                         localStorage.setItem('protrainer_session', JSON.stringify({ role: 'client', user: { name: c.name, trainerEmail: c.trainerEmail } }));
+                         window.location.reload();
+                       }} className="px-3 py-1 bg-[#34C759]/20 text-[#34C759] text-xs font-bold rounded-lg hover:bg-[#34C759]/30 transition-colors mr-auto">Login As</button>
+                       <button onClick={(e) => { e.stopPropagation(); setEditingClientKey(cKey); setEditClientPhone(c.phone || ''); setEditClientDob(c.dob || ''); setEditClientHeight(c.height || ''); setEditClientPassword(c.password || ''); }} className="p-2 text-[#8e8e93] hover:text-white transition-colors"><Edit2 className="w-4 h-4" /></button>
                        <button onClick={(e) => handleDeleteClient(e, c.name, c.trainerEmail)} className="p-2 text-[#8e8e93] hover:text-[#FF3B30] transition-colors"><Trash2 className="w-4 h-4" /></button>
                      </div>
                    </>
@@ -539,9 +556,38 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
               <div className="text-white font-bold">{exercises.length} Exercises</div>
               <div className="text-[#8e8e93] text-xs">Global dictionary</div>
             </div>
-            <button onClick={() => setShowAddExercise(!showAddExercise)} className="bg-[#FF3B30]/20 text-[#FF3B30] p-2 rounded-xl">
-              {showAddExercise ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-            </button>
+            <div className="flex gap-2">
+              <label className="bg-[#34C759]/20 text-[#34C759] p-2 rounded-xl cursor-pointer hover:bg-[#34C759]/30 transition-colors flex items-center justify-center">
+                <span className="text-xs font-bold px-2">CSV</span>
+                <input type="file" accept=".csv" className="hidden" onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const text = await file.text();
+                  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                  let added = 0;
+                  for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (i === 0 && line.toLowerCase().includes('name')) continue; // Skip header
+                    const parts = line.split(',');
+                    const name = parts[0]?.trim();
+                    const group = parts[1]?.trim() || "Uncategorized";
+                    if (name) {
+                       await addExerciseRecord({ name, group });
+                       added++;
+                    }
+                  }
+                  if (added > 0) {
+                    const eData = await fetchExercises();
+                    setExercises(eData || []);
+                    alert(`Successfully imported ${added} exercises.`);
+                  }
+                  e.target.value = '';
+                }} />
+              </label>
+              <button onClick={() => setShowAddExercise(!showAddExercise)} className="bg-[#FF3B30]/20 text-[#FF3B30] p-2 rounded-xl hover:bg-[#FF3B30]/30 transition-colors">
+                {showAddExercise ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
 
           {showAddExercise && (
@@ -579,6 +625,44 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
              ))}
              {exercises.length === 0 && !showAddExercise && (
                <div className="text-center py-12 text-[#8e8e93] text-sm">No exercises added.</div>
+             )}
+          </div>
+        </div>
+      ) : activeTab === 'reviews' ? (
+        <div className="space-y-6 pb-20">
+          <div className="flex justify-between items-center mt-2 mb-4">
+             <h3 className="text-white font-bold text-xl px-1">Global Reviews</h3>
+             <span className="text-[#FF3B30] font-bold bg-[#FF3B30]/10 px-3 py-1 rounded-full text-xs">All Trainers</span>
+          </div>
+          
+          <div className="space-y-4">
+             {allReviews.length === 0 ? (
+                <div className="text-center py-12 text-[#8e8e93] text-sm bg-[#1C1C1E] rounded-3xl border border-white/5">No client reviews submitted yet.</div>
+             ) : (
+                allReviews.map((rev, idx) => {
+                  const tInfo = trainers.find(t => t.email === rev.trainerEmail);
+                  return (
+                    <div key={idx} className="bg-[#1C1C1E] rounded-2xl p-5 border border-white/5 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="text-white font-bold text-lg">{rev.clientName}</div>
+                          <div className="text-[#8e8e93] text-xs font-semibold uppercase mt-0.5">Trainer: <span className="text-[#007AFF]">{tInfo?.name || rev.trainerEmail}</span></div>
+                        </div>
+                        <div className="flex items-center gap-1 bg-[#34C759]/10 px-3 py-1 flex-col rounded-xl">
+                          <span className="text-2xl font-bold text-[#34C759] leading-none mb-1 mt-1">{rev.rating}</span>
+                          <span className="text-[10px] text-[#34C759] uppercase font-bold tracking-wider mb-1">Overall</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-white/90 italic pt-2 pb-1">"{rev.feedbackText}"</p>
+                      <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-3 mt-1">
+                        <div className="flex justify-between items-center"><span className="text-[#8e8e93] text-[11px] font-medium uppercase tracking-wider">Punctuality</span><span className="text-white font-bold text-xs">{rev.punctuality}/5</span></div>
+                        <div className="flex justify-between items-center"><span className="text-[#8e8e93] text-[11px] font-medium uppercase tracking-wider">Professionalism</span><span className="text-white font-bold text-xs">{rev.professionalism}/5</span></div>
+                        <div className="flex justify-between items-center"><span className="text-[#8e8e93] text-[11px] font-medium uppercase tracking-wider">Knowledge</span><span className="text-white font-bold text-xs">{rev.knowledge}/5</span></div>
+                        <div className="flex justify-between items-center"><span className="text-[#8e8e93] text-[11px] font-medium uppercase tracking-wider">Communication</span><span className="text-white font-bold text-xs">{rev.communication}/5</span></div>
+                      </div>
+                    </div>
+                  );
+                })
              )}
           </div>
         </div>
