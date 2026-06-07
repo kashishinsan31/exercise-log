@@ -11,6 +11,7 @@ interface TrackedTrainer {
   id: string;
   name: string;
   email: string;
+  phone?: string;
 }
 
 interface ExerciseItem {
@@ -178,9 +179,22 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
     }
   };
 
+  const isPhoneUnique = (phoneToCheck: string, excludeEmail?: string, excludeClientName?: string) => {
+      if (!phoneToCheck) return true;
+      const trainerMatch = trainers.find(t => t.phone === phoneToCheck);
+      if (trainerMatch && trainerMatch.email !== excludeEmail) return false;
+      const clientMatch = clients.find(c => c.phone === phoneToCheck);
+      if (clientMatch && clientMatch.name !== excludeClientName) return false;
+      return true;
+  };
+
   const handleAddTrainer = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!newTrainerName || !newTrainerEmail || !newTrainerPhone) return;
+      if (!isPhoneUnique(newTrainerPhone.trim())) {
+          alert('This mobile number is already registered.');
+          return;
+      }
       setIsAddingTrainer(true);
       try {
           await addTrainer({ name: newTrainerName, email: newTrainerEmail, phone: newTrainerPhone, password: newTrainerPassword });
@@ -200,6 +214,10 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const handleCreateClient = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!dbSpreadsheetId || !newClientName || !newClientTrainer) return;
+      if (newClientPhone && !isPhoneUnique(newClientPhone.trim())) {
+          alert('This mobile number is already registered.');
+          return;
+      }
       setIsAddingClient(true);
       try {
           await addClient({ name: newClientName, trainerEmail: newClientTrainer, secondaryTrainerEmail: newClientSecondaryTrainer, phone: newClientPhone, dob: newClientDob, height: newClientHeight, password: newClientPassword});
@@ -296,6 +314,10 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const handleEditTrainerSave = async (e: React.MouseEvent | React.FormEvent, email: string) => {
       e.stopPropagation();
       e.preventDefault();
+      if (editTrainerPhone && !isPhoneUnique(editTrainerPhone.trim(), email)) {
+          alert('This mobile number is already registered.');
+          return;
+      }
       try {
           await updateTrainer(email, { name: editTrainerName, phone: editTrainerPhone, password: editTrainerPassword });
           setEditingTrainerEmail(null);
@@ -308,6 +330,10 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const handleEditClientSave = async (e: React.MouseEvent | React.FormEvent, name: string, oldTrainerEmail: string) => {
       e.stopPropagation();
       e.preventDefault();
+      if (editClientPhone && !isPhoneUnique(editClientPhone.trim(), undefined, name)) {
+          alert('This mobile number is already registered.');
+          return;
+      }
       try {
           if (editClientTrainerEmail !== oldTrainerEmail) {
              // trainer changed, we need to delete the old document and create a new one
@@ -476,6 +502,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
     <MobileNativeLayout
       title="Admin Portal"
       subtitle="System Overview"
+      onRefresh={() => loadSystemData(dbSpreadsheetId)}
       onLogout={() => { setIsAuthenticated(false); onBack(); }}
       bottomNav={
         <>
@@ -614,7 +641,14 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                   {trainers.map(t => <option key={t.email} value={t.email}>{t.name} ({t.email})</option>)}
                 </select>
                 <input type="tel" placeholder="Mobile Number (Unique Identity)" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
-                <input type="date" placeholder="DOB" value={newClientDob} onChange={e => setNewClientDob(e.target.value)} className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
+                <input 
+   type="date" 
+   placeholder="DOB" 
+   value={newClientDob} 
+   onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }} 
+   onChange={e => setNewClientDob(e.target.value)} 
+   className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full" 
+/>
                 <input type="text" placeholder="Height" value={newClientHeight} onChange={e => setNewClientHeight(e.target.value)} className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
                 <input type="password" placeholder="Password (Optional)" value={newClientPassword} onChange={e => setNewClientPassword(e.target.value)} className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
                 
@@ -658,7 +692,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                          </div>
                          <div className="space-y-1">
                            <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Date of Birth</label>
-                           <input type="date" value={editClientDob} onChange={e => setEditClientDob(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#007AFF] outline-none" />
+                           <input type="date" value={editClientDob} onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }} onChange={e => setEditClientDob(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#007AFF] outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full" />
                          </div>
                        </div>
                        <div className="grid grid-cols-2 gap-3">

@@ -281,6 +281,10 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
     <MobileNativeLayout
       title={trainerName}
       subtitle={selectedClient || "Select a Client"}
+      onRefresh={() => {
+        if (email) fetchClients(email);
+        if (selectedClient) loadClientData(selectedClient);
+      }}
       onLogout={() => { localStorage.removeItem('protrainer_session'); setStep('login'); setEmail(''); setPassword(''); onBack(); }}
       bottomNav={
         <>
@@ -582,8 +586,8 @@ export function LoggerForm({
         
         <div>
           <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Date</label>
-          <input type="date" required value={date} onChange={(e) => setDate(e.target.value)}
-            className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors" />
+          <input type="date" required value={date} onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }} onChange={(e) => setDate(e.target.value)}
+            className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full" />
         </div>
 
         <div>
@@ -683,8 +687,8 @@ function MeasurementForm({ clientName, onMeasurementAdded }: { clientName: strin
         
         <div>
           <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Date</label>
-          <input type="date" required value={date} onChange={(e) => setDate(e.target.value)}
-            className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors" />
+          <input type="date" required value={date} onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }} onChange={(e) => setDate(e.target.value)}
+            className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full" />
         </div>
 
         <div className="grid grid-cols-2 gap-4">

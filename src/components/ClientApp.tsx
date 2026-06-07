@@ -226,6 +226,7 @@ export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwit
       <MobileNativeLayout
         title={selectedClient.name}
         subtitle={getGreetingTime()}
+        onRefresh={() => fetchClientData(selectedClient)}
         onLogout={() => { localStorage.removeItem('protrainer_session'); setStep('login'); setEmail(''); setPassword(''); onBack(); }}
         bottomNav={
           <>

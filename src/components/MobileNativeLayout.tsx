@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, LogOut } from 'lucide-react';
+import { ChevronLeft, LogOut, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { InstallPWA } from './InstallPWA';
 
@@ -7,16 +7,17 @@ interface MobileNativeLayoutProps {
   children: React.ReactNode;
   onBack?: () => void;
   onLogout?: () => void;
+  onRefresh?: () => void;
   title?: string;
   subtitle?: string;
   bottomNav?: React.ReactNode;
   headerRight?: React.ReactNode;
 }
 
-export function MobileNativeLayout({ children, onBack, onLogout, title, subtitle, bottomNav, headerRight }: MobileNativeLayoutProps) {
+export function MobileNativeLayout({ children, onBack, onLogout, onRefresh, title, subtitle, bottomNav, headerRight }: MobileNativeLayoutProps) {
   return (
-    <div className="fixed inset-0 bg-black flex justify-center items-center p-0 md:p-8 z-50 font-sans">
-      <div className="w-full h-full md:w-[400px] md:h-[800px] md:max-h-[90vh] bg-[#0A0A0C] text-white md:rounded-[3rem] relative overflow-hidden shadow-2xl md:border-[8px] border-[#1A1A1D] flex flex-col">
+    <div className="fixed inset-0 bg-[#0A0A0C] flex justify-center p-0 z-50 font-sans sm:bg-black/90">
+      <div className="w-full h-[100dvh] sm:h-full sm:max-w-md sm:border-x border-white/10 bg-[#0A0A0C] text-white relative overflow-hidden flex flex-col shadow-2xl">
         
         {/* Header content */}
         <div className="px-5 pt-3 pb-2 flex justify-between items-center z-10 shrink-0">
@@ -37,6 +38,11 @@ export function MobileNativeLayout({ children, onBack, onLogout, title, subtitle
           </div>
           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
              {headerRight}
+             {onRefresh && (
+               <button onClick={onRefresh} className="w-9 h-9 bg-[#1C1C1E] hover:bg-[#2C2C2E] rounded-full flex items-center justify-center text-white transition-colors shadow-sm">
+                  <RefreshCw className="w-4 h-4 text-white/80" />
+               </button>
+             )}
              {onLogout && (
                <button onClick={onLogout} className="w-9 h-9 bg-[#FF3B30]/10 hover:bg-[#FF3B30]/20 rounded-full flex items-center justify-center text-[#FF3B30] transition-colors shadow-sm">
                   <LogOut className="w-4 h-4 ml-0.5" />
