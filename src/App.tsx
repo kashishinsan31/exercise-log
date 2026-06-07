@@ -4,10 +4,50 @@ import { ClientApp } from './components/ClientApp';
 import { AdminApp } from './components/AdminApp';
 import { TrainerApp } from './components/TrainerApp';
 import { MobileNativeLayout } from './components/MobileNativeLayout';
+import { InstallPWA } from './components/InstallPWA';
+import { subscribeToNotifications } from './lib/db';
 import { motion } from 'motion/react';
 
 export default function App() {
   const [role, setRole] = useState<'splash' | 'none' | 'trainer' | 'client' | 'admin'>('splash');
+  const [notifPermission, setNotifPermission] = useState(Notification.permission);
+
+  // Ask for notification permission if possible
+  useEffect(() => {
+    if (role === 'client' || role === 'trainer') {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().then(setNotifPermission);
+      }
+    }
+  }, [role]);
+
+  // Subscribe to notifications
+  useEffect(() => {
+    if ((role === 'client' || role === 'trainer') && notifPermission === 'granted') {
+      const storedLastSeen = parseInt(localStorage.getItem('last_notif_time') || '0', 10);
+      let latestTime = storedLastSeen;
+
+      const unsub = subscribeToNotifications(role, (notifs) => {
+        // filter out older ones
+        const newNotifs = notifs.filter(n => new Date(n.createdAt).getTime() > storedLastSeen);
+        if (newNotifs.length > 0) {
+          // Play notification
+          newNotifs.forEach(n => {
+            const time = new Date(n.createdAt).getTime();
+            if (time > latestTime) {
+                latestTime = time;
+                new Notification(n.title, {
+                  body: n.body,
+                  icon: 'https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png'
+                });
+            }
+          });
+          localStorage.setItem('last_notif_time', latestTime.toString());
+        }
+      });
+      return () => unsub();
+    }
+  }, [role, notifPermission]);
 
   useEffect(() => {
     // Show splash screen for 2.5 seconds

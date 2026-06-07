@@ -5,6 +5,13 @@ import { ClientDashboard } from './ClientDashboard';
 import { MobileNativeLayout, MobileTabItem } from './MobileNativeLayout';
 
 export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwitchRole?: (role: any) => void }) {
+  const getGreetingTime = () => {
+    const currentHour = new Date().getHours();
+    if (currentHour < 12) return 'Good Morning';
+    if (currentHour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
   const [step, setStep] = useState<'login' | 'dashboard'>(() => {
     const saved = localStorage.getItem('protrainer_session');
     if (saved) {
@@ -189,7 +196,7 @@ export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwit
     return (
       <MobileNativeLayout
         title={selectedClient.name}
-        subtitle="Good Morning"
+        subtitle={getGreetingTime()}
         onLogout={() => { localStorage.removeItem('protrainer_session'); setStep('login'); setEmail(''); setPassword(''); onBack(); }}
         bottomNav={
           <>
@@ -396,7 +403,7 @@ export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwit
 
   // Login
   return (
-    <MobileNativeLayout onBack={onBack}>
+    <MobileNativeLayout>
       <div className="flex flex-col items-center justify-center mt-4 mb-8">
         <div className="w-16 h-16 rounded-[2rem] flex items-center justify-center mb-4 overflow-hidden bg-white/5">
           <img src="https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png" alt="Company Logo" className="w-full h-full object-contain p-2" />

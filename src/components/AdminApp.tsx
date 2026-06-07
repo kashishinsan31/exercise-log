@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, LogOut, Plus, Users, Dumbbell, Activity, LineChart as LineChartIcon, Loader2, Database, Link as LinkIcon, UserPlus, Trash2, Edit2, X, Check, Search, Menu, Star } from 'lucide-react';
-import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, fetchExercises, addExerciseRecord, deleteExerciseRecord, ClientProfile, ExerciseLog, BodyMeasurement, initializeDatabase, addTrainer, addClient, deleteTrainerRecord, deleteClientRecord, updateTrainer, updateClient, TrainerReview, fetchAllTrainerReviews } from '../lib/db';
+import { Shield, LogOut, Plus, Users, Dumbbell, Activity, LineChart as LineChartIcon, Loader2, Database, Link as LinkIcon, UserPlus, Trash2, Edit2, X, Check, Search, Menu, Star, Bell } from 'lucide-react';
+import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, fetchExercises, addExerciseRecord, deleteExerciseRecord, ClientProfile, ExerciseLog, BodyMeasurement, initializeDatabase, addTrainer, addClient, deleteTrainerRecord, deleteClientRecord, updateTrainer, updateClient, TrainerReview, fetchAllTrainerReviews, sendNotification } from '../lib/db';
 import { ClientDashboard } from './ClientDashboard';
 import { MobileNativeLayout, MobileTabItem } from './MobileNativeLayout';
 
@@ -21,7 +21,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'trainers' | 'clients' | 'exercises' | 'overview' | 'reviews'>('trainers');
+  const [activeTab, setActiveTab] = useState<'trainers' | 'clients' | 'exercises' | 'overview' | 'reviews' | 'notifications'>('trainers');
 
   // Dash State
   const [dbSpreadsheetId, setDbSpreadsheetId] = useState<string>('');
@@ -90,6 +90,31 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
     } else {
       setError(true);
     }
+  };
+
+  // Notifications State
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifBody, setNotifBody] = useState('');
+  const [notifRole, setNotifRole] = useState<'client' | 'trainer' | 'both'>('client');
+  const [isSendingNotif, setIsSendingNotif] = useState(false);
+  const [notifSuccess, setNotifSuccess] = useState(false);
+
+  const handleSendNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!notifTitle || !notifBody) return;
+    setIsSendingNotif(true);
+    setNotifSuccess(false);
+    try {
+      await sendNotification(notifTitle, notifBody, notifRole);
+      setNotifTitle('');
+      setNotifBody('');
+      setNotifSuccess(true);
+      setTimeout(() => setNotifSuccess(false), 3000);
+    } catch (e) {
+      console.error(e);
+      alert('Error sending notification');
+    }
+    setIsSendingNotif(false);
   };
 
   useEffect(() => {
@@ -362,6 +387,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
           <MobileTabItem icon={<Users />} label="Clients" isActive={activeTab === 'clients'} onClick={() => setActiveTab('clients')} activeColor="text-[#FF3B30]" />
           <MobileTabItem icon={<Activity />} label="Exercises" isActive={activeTab === 'exercises'} onClick={() => setActiveTab('exercises')} activeColor="text-[#FF3B30]" />
           <MobileTabItem icon={<Star />} label="Reviews" isActive={activeTab === 'reviews'} onClick={() => setActiveTab('reviews')} activeColor="text-[#FF3B30]" />
+          <MobileTabItem icon={<Bell />} label="Alerts" isActive={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} activeColor="text-[#FF3B30]" />
         </>
       }
     >
@@ -665,6 +691,44 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                 })
              )}
           </div>
+        </div>
+      ) : activeTab === 'notifications' ? (
+        <div className="space-y-6 pb-20">
+          <div className="flex flex-col mb-4">
+             <h3 className="text-white font-bold text-xl px-1">Send Alert</h3>
+             <p className="text-[#8e8e93] text-sm px-1 mt-1">Push notifications to users.</p>
+          </div>
+          
+          <form onSubmit={handleSendNotification} className="bg-[#1C1C1E] p-5 rounded-2xl border border-white/5 space-y-4">
+            <div>
+              <label className="text-xs font-bold text-[#8e8e93] uppercase tracking-wider mb-2 block">Target Audience</label>
+              <div className="grid grid-cols-3 gap-2">
+                 <button type="button" onClick={() => setNotifRole('client')} className={`py-2 rounded-xl text-sm font-semibold transition-colors ${notifRole === 'client' ? 'bg-[#FF3B30] text-white' : 'bg-[#0A0A0C] text-[#8e8e93]'}`}>Clients</button>
+                 <button type="button" onClick={() => setNotifRole('trainer')} className={`py-2 rounded-xl text-sm font-semibold transition-colors ${notifRole === 'trainer' ? 'bg-[#FF3B30] text-white' : 'bg-[#0A0A0C] text-[#8e8e93]'}`}>Trainers</button>
+                 <button type="button" onClick={() => setNotifRole('both')} className={`py-2 rounded-xl text-sm font-semibold transition-colors ${notifRole === 'both' ? 'bg-[#FF3B30] text-white' : 'bg-[#0A0A0C] text-[#8e8e93]'}`}>Both</button>
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-xs font-bold text-[#8e8e93] uppercase tracking-wider mb-2 block">Notification Title</label>
+              <input type="text" placeholder="E.g., System Maintenance" value={notifTitle} onChange={e => setNotifTitle(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#FF3B30]" />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-[#8e8e93] uppercase tracking-wider mb-2 block">Message Body</label>
+              <textarea placeholder="Write message here..." value={notifBody} onChange={e => setNotifBody(e.target.value)} required rows={4} className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#FF3B30] resize-none" />
+            </div>
+
+            <button type="submit" disabled={isSendingNotif} className="w-full bg-[#FF3B30] text-white font-bold py-3 rounded-xl flex justify-center items-center mt-2 disabled:opacity-50">
+               {isSendingNotif ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send Notification'}
+            </button>
+            
+            {notifSuccess && (
+              <div className="flex items-center justify-center gap-2 text-[#34C759] text-sm font-semibold mt-4">
+                 <Check className="w-4 h-4" /> Delivered successfully
+              </div>
+            )}
+          </form>
         </div>
       ) : null}
     </MobileNativeLayout>

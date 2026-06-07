@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronLeft, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { InstallPWA } from './InstallPWA';
 
 interface MobileNativeLayoutProps {
   children: React.ReactNode;
@@ -17,22 +18,13 @@ export function MobileNativeLayout({ children, onBack, onLogout, title, subtitle
     <div className="fixed inset-0 bg-black flex justify-center items-center p-0 md:p-8 z-50 font-sans">
       <div className="w-full h-full md:w-[400px] md:h-[800px] md:max-h-[90vh] bg-[#0A0A0C] text-white md:rounded-[3rem] relative overflow-hidden shadow-2xl md:border-[8px] border-[#1A1A1D] flex flex-col">
         
-        {/* Dynamic Island / Status Bar area */}
-        <div className="absolute top-0 inset-x-0 h-10 flex justify-center items-center z-50 pointer-events-none">
-           <div className="w-32 h-6 bg-black rounded-b-3xl"></div>
-        </div>
-
         {/* Header content */}
-        <div className="px-5 pt-10 pb-3 flex justify-between items-center z-10 bg-gradient-to-b from-[#0A0A0C] to-transparent shrink-0">
+        <div className="px-5 pt-3 pb-2 flex justify-between items-center z-10 shrink-0">
           <div className="flex items-center gap-3">
-             {onBack ? (
+             {onBack && (
                <button onClick={onBack} className="w-9 h-9 bg-[#1C1C1E] rounded-full flex items-center justify-center relative overflow-hidden shrink-0 shadow-sm border border-white/5">
                   <ChevronLeft className="w-5 h-5 text-white/80" />
                </button>
-             ) : (
-               <div className="w-9 h-9 flex items-center justify-center shrink-0 overflow-hidden relative rounded-full">
-                 <img src="https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png" alt="" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-               </div>
              )}
              <motion.div 
                initial={{ opacity: 0, x: -10 }}
@@ -40,7 +32,7 @@ export function MobileNativeLayout({ children, onBack, onLogout, title, subtitle
                className="flex flex-col"
              >
                {subtitle && <span className="text-[#8e8e93] text-[10px] sm:text-xs font-semibold tracking-wider uppercase mb-0.5">{subtitle}</span>}
-               {title && <h1 className="text-xl sm:text-2xl font-bold tracking-tight line-clamp-1 leading-none">{title}</h1>}
+               {title && <h1 className="text-xl sm:text-2xl font-bold tracking-tight line-clamp-1 leading-none capitalize">{title}</h1>}
              </motion.div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
@@ -75,6 +67,7 @@ export function MobileNativeLayout({ children, onBack, onLogout, title, subtitle
           </div>
         )}
       </div>
+      <InstallPWA />
     </div>
   );
 }

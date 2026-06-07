@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, getDocs, getDoc, query, where, addDoc, deleteDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, setDoc, getDocs, getDoc, query, where, addDoc, deleteDoc, updateDoc, onSnapshot } from "firebase/firestore";
 import { db } from "./firebase";
 
 export type ClientProfile = {
@@ -50,6 +50,37 @@ export type BodyMeasurement = {
   arms: string;
   weight: string;
 };
+
+export type AppNotification = {
+  id?: string;
+  title: string;
+  body: string;
+  targetRole: 'client' | 'trainer' | 'both';
+  createdAt: string;
+};
+
+export async function sendNotification(title: string, body: string, targetRole: 'client' | 'trainer' | 'both') {
+  await addDoc(collection(db, "notifications"), {
+    title,
+    body,
+    targetRole,
+    createdAt: new Date().toISOString()
+  });
+}
+
+export function subscribeToNotifications(role: 'client' | 'trainer', callback: (notifs: AppNotification[]) => void) {
+  const q = query(collection(db, "notifications"));
+  return onSnapshot(q, (snapshot) => {
+    const raw: AppNotification[] = [];
+    snapshot.forEach(doc => {
+      raw.push({ id: doc.id, ...doc.data() } as AppNotification);
+    });
+    // Filter matching role and sort
+    const valid = raw.filter(n => n.targetRole === 'both' || n.targetRole === role)
+      .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    callback(valid);
+  });
+}
 
 export async function initializeDatabase(adminEmail: string): Promise<string> {
   const exSnap = await getDocs(collection(db, "exercises"));
