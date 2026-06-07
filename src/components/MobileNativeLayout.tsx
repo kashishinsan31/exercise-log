@@ -30,8 +30,8 @@ export function MobileNativeLayout({ children, onBack, onLogout, title, subtitle
                   <ChevronLeft className="w-5 h-5 text-white/80" />
                </button>
              ) : (
-               <div className="w-10 h-10 flex items-center justify-center shrink-0 overflow-hidden relative">
-                 <img src="/logo.png" alt="" className="w-full h-full object-cover outline-none border-none scale-150 hidden" />
+               <div className="w-10 h-10 flex items-center justify-center shrink-0 overflow-hidden relative rounded-full">
+                 <img src="/logo.png" alt="" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                </div>
              )}
              <motion.div 
