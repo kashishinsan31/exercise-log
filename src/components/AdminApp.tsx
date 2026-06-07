@@ -3,6 +3,7 @@ import { Shield, LogOut, Plus, Users, Dumbbell, Activity, LineChart as LineChart
 import { Trophy } from 'lucide-react';
 import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, fetchExercises, addExerciseRecord, deleteExerciseRecord, ClientProfile, ExerciseLog, BodyMeasurement, initializeDatabase, addTrainer, addClient, deleteTrainerRecord, deleteClientRecord, updateTrainer, updateClient, TrainerReview, fetchAllTrainerReviews, sendNotification, fetchAllLogs } from '../lib/db';
 import { ClientDashboard } from './ClientDashboard';
+import { LoggerForm } from './TrainerApp';
 import { MobileNativeLayout, MobileTabItem } from './MobileNativeLayout';
 import { LeaderboardView } from './LeaderboardView';
 
@@ -33,6 +34,11 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const [exercises, setExercises] = useState<ExerciseItem[]>([]);
   const [allReviews, setAllReviews] = useState<TrainerReview[]>([]);
   
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeleteGroup, setConfirmDeleteGroup] = useState<string | null>(null);
+  const [confirmDeleteTrainer, setConfirmDeleteTrainer] = useState<string | null>(null);
+  const [confirmDeleteClient, setConfirmDeleteClient] = useState<string | null>(null);
+  
   const [isAddingDB, setIsAddingDB] = useState(false);
   const [addDBError, setAddDBError] = useState('');
   const [dbInputMode, setDbInputMode] = useState<'url' | 'none'>('none');
@@ -50,6 +56,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const [showAddClient, setShowAddClient] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientTrainer, setNewClientTrainer] = useState('');
+  const [newClientSecondaryTrainer, setNewClientSecondaryTrainer] = useState('');
   const [newClientPassword, setNewClientPassword] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
   const [newClientDob, setNewClientDob] = useState('');
@@ -70,6 +77,8 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
 
   // Edit Client State
   const [editingClientKey, setEditingClientKey] = useState<string | null>(null);
+  const [editClientTrainerEmail, setEditClientTrainerEmail] = useState('');
+  const [editClientSecondaryTrainerEmail, setEditClientSecondaryTrainerEmail] = useState('');
   const [editClientPhone, setEditClientPhone] = useState('');
   const [editClientDob, setEditClientDob] = useState('');
   const [editClientHeight, setEditClientHeight] = useState('');
@@ -193,11 +202,12 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
       if (!dbSpreadsheetId || !newClientName || !newClientTrainer) return;
       setIsAddingClient(true);
       try {
-          await addClient({ name: newClientName, trainerEmail: newClientTrainer, phone: newClientPhone, dob: newClientDob, height: newClientHeight, password: newClientPassword});
+          await addClient({ name: newClientName, trainerEmail: newClientTrainer, secondaryTrainerEmail: newClientSecondaryTrainer, phone: newClientPhone, dob: newClientDob, height: newClientHeight, password: newClientPassword});
           await loadSystemData(dbSpreadsheetId);
           setShowAddClient(false);
           setNewClientName('');
           setNewClientTrainer('');
+          setNewClientSecondaryTrainer('');
           setNewClientPassword('');
           setNewClientPhone('');
           setNewClientDob('');
@@ -229,18 +239,59 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const handleDeleteExercise = async (e: React.MouseEvent, id?: string) => {
       e.stopPropagation();
       if (!id) return;
-      if (!confirm('Are you sure you want to delete this exercise?')) return;
       try {
           await deleteExerciseRecord(id);
           setExercises(prev => prev.filter(ex => ex.id !== id));
+          setConfirmDeleteId(null);
       } catch (err: any) {
           alert(err.message);
       }
   };
 
-  const handleDeleteTrainer = async (e: React.MouseEvent, email: string) => { e.stopPropagation(); if (!confirm('Are you sure you want to delete trainer ' + email + '?')) return; try { await deleteTrainerRecord(email); setTrainers(prev => prev.filter(t => t.email !== email)); if (selectedTrainer?.email === email) { setSelectedTrainer(null); setTrainerClients([]); } } catch (err: any) { alert(err.message); } }; 
+  const handleDeleteGroup = async (e: React.MouseEvent, group: string, groupExercises: typeof exercises) => {
+      e.stopPropagation();
+      try {
+          for (const ex of groupExercises) {
+             if (ex.id) await deleteExerciseRecord(ex.id);
+          }
+          setExercises(prev => prev.filter(ex => ex.group !== group));
+          setConfirmDeleteGroup(null);
+      } catch (err: any) {
+          alert('Delete error: ' + err.message);
+      }
+  };
 
-  const handleDeleteClient = async (e: React.MouseEvent, name: string, trainerEmail: string) => { e.stopPropagation(); if (!confirm('Are you sure you want to delete client ' + name + '?')) return; try { await deleteClientRecord(name, trainerEmail); setClients(prev => prev.filter(c => !(c.name === name && c.trainerEmail === trainerEmail))); if (selectedTrainer?.email === trainerEmail) { setTrainerClients(prev => prev.filter(c => c.name !== name)); } if (selectedClient?.name === name) { setSelectedClient(null); } } catch (err: any) { alert(err.message); } }; 
+  const handleDeleteTrainer = async (e: React.MouseEvent, email: string) => { 
+      e.stopPropagation(); 
+      try { 
+          await deleteTrainerRecord(email); 
+          setTrainers(prev => prev.filter(t => t.email !== email)); 
+          if (selectedTrainer?.email === email) { 
+              setSelectedTrainer(null); 
+              setTrainerClients([]); 
+          } 
+          setConfirmDeleteTrainer(null);
+      } catch (err: any) { 
+          alert(err.message); 
+      } 
+  }; 
+
+  const handleDeleteClient = async (e: React.MouseEvent, name: string, trainerEmail: string) => { 
+      e.stopPropagation(); 
+      try { 
+          await deleteClientRecord(name, trainerEmail); 
+          setClients(prev => prev.filter(c => !(c.name === name && c.trainerEmail === trainerEmail))); 
+          if (selectedTrainer?.email === trainerEmail) { 
+              setTrainerClients(prev => prev.filter(c => c.name !== name)); 
+          } 
+          if (selectedClient?.name === name) { 
+              setSelectedClient(null); 
+          } 
+          setConfirmDeleteClient(null);
+      } catch (err: any) { 
+          alert(err.message); 
+      } 
+  };
 
   const handleEditTrainerSave = async (e: React.MouseEvent | React.FormEvent, email: string) => {
       e.stopPropagation();
@@ -254,11 +305,18 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
       }
   };
 
-  const handleEditClientSave = async (e: React.MouseEvent | React.FormEvent, name: string, trainerEmail: string) => {
+  const handleEditClientSave = async (e: React.MouseEvent | React.FormEvent, name: string, oldTrainerEmail: string) => {
       e.stopPropagation();
       e.preventDefault();
       try {
-          await updateClient(name, trainerEmail, { phone: editClientPhone, dob: editClientDob, height: editClientHeight, password: editClientPassword });
+          if (editClientTrainerEmail !== oldTrainerEmail) {
+             // trainer changed, we need to delete the old document and create a new one
+             await deleteClientRecord(name, oldTrainerEmail);
+             await addClient({ name, trainerEmail: editClientTrainerEmail, secondaryTrainerEmail: editClientSecondaryTrainerEmail, phone: editClientPhone, dob: editClientDob, height: editClientHeight, password: editClientPassword });
+          } else {
+             // trainer is same, just update
+             await updateClient(name, editClientTrainerEmail, { secondaryTrainerEmail: editClientSecondaryTrainerEmail, phone: editClientPhone, dob: editClientDob, height: editClientHeight, password: editClientPassword });
+          }
           setEditingClientKey(null);
           await loadSystemData(dbSpreadsheetId);
       } catch (err: any) {
@@ -270,7 +328,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
     setIsLoadingData(true);
     setSelectedTrainer(trainer);
     setSelectedClient(null);
-    setTrainerClients(clients.filter(c => c.trainerEmail === trainer.email));
+    setTrainerClients(clients.filter(c => c.trainerEmail === trainer.email || c.secondaryTrainerEmail === trainer.email));
     setActiveTab('overview');
     setIsLoadingData(false);
   };
@@ -369,12 +427,46 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                {isLoadingData ? (
                  <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-[#007AFF]" /></div>
                ) : (
-                 <div className="bg-[#1C1C1E] rounded-3xl overflow-hidden p-2">
-                   <ClientDashboard clientName={selectedClient.name} logs={clientLogs} measurements={clientMeasurements} />
+                 <div className="space-y-6">
+                   <LoggerForm 
+                     clientName={selectedClient.name}
+                     exercises={exercises}
+                     onLogAdded={(log) => setClientLogs(p => [log, ...p].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()))}
+                   />
+                   <div className="bg-[#1C1C1E] rounded-3xl overflow-hidden p-2">
+                     <ClientDashboard clientName={selectedClient.name} logs={clientLogs} measurements={clientMeasurements} />
+                   </div>
                  </div>
                )}
              </div>
           )}
+        </div>
+      </MobileNativeLayout>
+    );
+  }
+
+  if (selectedClient && !selectedTrainer) {
+    return (
+      <MobileNativeLayout
+        title={selectedClient.name}
+        subtitle="Client Overview"
+        onBack={() => setSelectedClient(null)}
+      >
+        <div className="pb-20 space-y-6">
+           {isLoadingData ? (
+             <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-[#007AFF]" /></div>
+           ) : (
+             <>
+               <LoggerForm 
+                 clientName={selectedClient.name}
+                 exercises={exercises}
+                 onLogAdded={(log) => setClientLogs(p => [log, ...p].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()))}
+               />
+               <div className="bg-[#1C1C1E] rounded-3xl overflow-hidden p-2">
+                 <ClientDashboard clientName={selectedClient.name} logs={clientLogs} measurements={clientMeasurements} />
+               </div>
+             </>
+           )}
         </div>
       </MobileNativeLayout>
     );
@@ -478,7 +570,15 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                       </div>
                       <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-white/5">
                         <button onClick={(e) => { e.stopPropagation(); setEditingTrainerEmail(t.email); setEditTrainerName(t.name); setEditTrainerPhone(t.phone || ''); setEditTrainerPassword(''); }} className="p-2 text-[#8e8e93] hover:text-white transition-colors"><Edit2 className="w-4 h-4" /></button>
-                        <button onClick={(e) => handleDeleteTrainer(e, t.email)} className="p-2 text-[#8e8e93] hover:text-[#FF3B30] transition-colors"><Trash2 className="w-4 h-4" /></button>
+                        {confirmDeleteTrainer === t.email ? (
+                          <div className="flex gap-2 items-center">
+                            <span className="text-[#8e8e93] text-xs font-bold">Sure?</span>
+                            <button onClick={(e) => handleDeleteTrainer(e, t.email)} className="px-3 py-1 bg-[#FF3B30] text-white text-xs font-bold rounded-lg hover:bg-[#FF3B30]/90 transition-colors">Yes</button>
+                            <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteTrainer(null); }} className="px-3 py-1 bg-[#1C1C1E] text-white text-xs font-bold rounded-lg border border-white/10 hover:bg-white/5 transition-colors">No</button>
+                          </div>
+                        ) : (
+                          <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteTrainer(t.email); }} className="p-2 text-[#8e8e93] hover:text-[#FF3B30] transition-colors"><Trash2 className="w-4 h-4" /></button>
+                        )}
                       </div>
                     </>
                   )}
@@ -506,7 +606,11 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                 <h4 className="text-xs font-bold text-[#8e8e93] uppercase tracking-wider mb-2">New Client Profile</h4>
                 <input type="text" placeholder="Name" value={newClientName} onChange={e => setNewClientName(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
                 <select value={newClientTrainer} onChange={e => setNewClientTrainer(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]">
-                  <option value="" disabled>Assign to Trainer...</option>
+                  <option value="" disabled>Assign Primary Trainer...</option>
+                  {trainers.map(t => <option key={t.email} value={t.email}>{t.name} ({t.email})</option>)}
+                </select>
+                <select value={newClientSecondaryTrainer} onChange={e => setNewClientSecondaryTrainer(e.target.value)} className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]">
+                  <option value="">No Secondary Trainer</option>
                   {trainers.map(t => <option key={t.email} value={t.email}>{t.name} ({t.email})</option>)}
                 </select>
                 <input type="tel" placeholder="Mobile Number (Unique Identity)" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
@@ -523,6 +627,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
           <div className="space-y-3">
              {clients.map((c, idx) => {
                const assignedTrainer = trainers.find(t => t.email === c.trainerEmail);
+               const secondaryTrainer = trainers.find(t => t.email === c.secondaryTrainerEmail);
                const cKey = `${c.name}_${c.trainerEmail}`;
                return (
                <div key={idx} className="bg-[#1C1C1E] rounded-2xl p-4 border border-white/5 flex flex-col gap-3">
@@ -530,6 +635,21 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                     <div className="space-y-4 bg-[#0A0A0C] p-4 rounded-xl border border-white/10">
                        <div className="flex justify-between items-center">
                            <h4 className="text-white text-sm font-bold uppercase tracking-wider">Edit Client Profile</h4>
+                       </div>
+                       <div className="grid grid-cols-2 gap-3">
+                         <div className="space-y-1">
+                           <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Primary Trainer</label>
+                           <select value={editClientTrainerEmail} onChange={e => setEditClientTrainerEmail(e.target.value)} required className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-2 py-3 text-white focus:border-[#007AFF] outline-none">
+                             {trainers.map(t => <option key={t.email} value={t.email}>{t.name}</option>)}
+                           </select>
+                         </div>
+                         <div className="space-y-1">
+                           <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Secondary Trainer</label>
+                           <select value={editClientSecondaryTrainerEmail} onChange={e => setEditClientSecondaryTrainerEmail(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-2 py-3 text-white focus:border-[#007AFF] outline-none">
+                             <option value="">None</option>
+                             {trainers.map(t => <option key={t.email} value={t.email}>{t.name}</option>)}
+                           </select>
+                         </div>
                        </div>
                        <div className="grid grid-cols-2 gap-3">
                          <div className="space-y-1">
@@ -560,7 +680,14 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                    <>
                      <div>
                        <div className="text-white font-bold text-lg">{c.name}</div>
-                       <div className="text-[#8e8e93] text-xs font-medium mt-1 uppercase">Trainer: <span className="text-[#007AFF]">{assignedTrainer ? assignedTrainer.name : c.trainerEmail}</span></div>
+                       <div className="text-[#8e8e93] text-xs font-medium mt-1 uppercase">
+                         Trainer: <span className="text-[#007AFF]">{assignedTrainer ? assignedTrainer.name : c.trainerEmail}</span>
+                         {c.secondaryTrainerEmail && (
+                           <span className="ml-1">
+                             / <span className="text-[#007AFF]">{secondaryTrainer ? secondaryTrainer.name : c.secondaryTrainerEmail}</span>
+                           </span>
+                         )}
+                       </div>
                      </div>
                      <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-white/5">
                        <button onClick={(e) => {
@@ -568,8 +695,17 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                          localStorage.setItem('protrainer_session', JSON.stringify({ role: 'client', user: { name: c.name, trainerEmail: c.trainerEmail } }));
                          window.location.reload();
                        }} className="px-3 py-1 bg-[#34C759]/20 text-[#34C759] text-xs font-bold rounded-lg hover:bg-[#34C759]/30 transition-colors mr-auto">Login As</button>
-                       <button onClick={(e) => { e.stopPropagation(); setEditingClientKey(cKey); setEditClientPhone(c.phone || ''); setEditClientDob(c.dob || ''); setEditClientHeight(c.height || ''); setEditClientPassword(c.password || ''); }} className="p-2 text-[#8e8e93] hover:text-white transition-colors"><Edit2 className="w-4 h-4" /></button>
-                       <button onClick={(e) => handleDeleteClient(e, c.name, c.trainerEmail)} className="p-2 text-[#8e8e93] hover:text-[#FF3B30] transition-colors"><Trash2 className="w-4 h-4" /></button>
+                       <button onClick={(e) => { e.stopPropagation(); loadClientData(c); }} className="px-3 py-1 bg-[#007AFF]/20 text-[#007AFF] text-xs font-bold rounded-lg hover:bg-[#007AFF]/30 transition-colors">View Logs</button>
+                       <button onClick={(e) => { e.stopPropagation(); setEditingClientKey(cKey); setEditClientTrainerEmail(c.trainerEmail); setEditClientSecondaryTrainerEmail(c.secondaryTrainerEmail || ''); setEditClientPhone(c.phone || ''); setEditClientDob(c.dob || ''); setEditClientHeight(c.height || ''); setEditClientPassword(c.password || ''); }} className="p-2 text-[#8e8e93] hover:text-white transition-colors"><Edit2 className="w-4 h-4" /></button>
+                       {confirmDeleteClient === cKey ? (
+                         <div className="flex gap-2 items-center">
+                           <span className="text-[#8e8e93] text-xs font-bold">Sure?</span>
+                           <button onClick={(e) => handleDeleteClient(e, c.name, c.trainerEmail)} className="px-3 py-1 bg-[#FF3B30] text-white text-xs font-bold rounded-lg hover:bg-[#FF3B30]/90 transition-colors">Yes</button>
+                           <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteClient(null); }} className="px-3 py-1 bg-[#1C1C1E] text-white text-xs font-bold rounded-lg border border-white/10 hover:bg-white/5 transition-colors">No</button>
+                         </div>
+                       ) : (
+                         <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteClient(cKey); }} className="p-2 text-[#8e8e93] hover:text-[#FF3B30] transition-colors"><Trash2 className="w-4 h-4" /></button>
+                       )}
                      </div>
                    </>
                  )}
@@ -654,15 +790,32 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                return groups;
              }, {} as Record<string, typeof exercises>)).map(([group, exs]) => (
                <div key={group} className="bg-[#1C1C1E] rounded-2xl overflow-hidden border border-white/5">
-                 <div className="bg-[#0A0A0C] px-4 py-3 border-b border-white/5">
+                 <div className="bg-[#0A0A0C] px-4 py-3 border-b border-white/5 flex justify-between items-center">
                     <h3 className="text-[#8e8e93] text-xs font-bold uppercase tracking-wider">{group}</h3>
+                    {confirmDeleteGroup === group ? (
+                      <div className="flex gap-2 items-center">
+                        <span className="text-[#8e8e93] text-[10px] uppercase font-bold">Sure?</span>
+                        <button onClick={(e) => handleDeleteGroup(e, group, exs)} className="px-2 py-1 bg-[#FF3B30] text-white text-[10px] uppercase font-bold rounded-lg hover:bg-[#FF3B30]/90 transition-colors">Yes</button>
+                        <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteGroup(null); }} className="px-2 py-1 bg-[#1C1C1E] text-white text-[10px] uppercase font-bold rounded-lg border border-white/10 hover:bg-white/5 transition-colors">No</button>
+                      </div>
+                    ) : (
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteGroup(group); }} className="text-[#8e8e93] hover:text-[#FF3B30] text-[10px] font-bold uppercase tracking-wider transition-colors py-1 px-2 border border-transparent hover:border-[#FF3B30]/30 rounded-lg">Delete Group</button>
+                    )}
                  </div>
                  <div className="divide-y divide-white/5">
                    {(exs as typeof exercises).map((ex, idx) => (
                      <div key={idx} className="flex justify-between items-center p-4">
                        <span className="text-white text-sm font-medium">{ex.name}</span>
                        {ex.id && (
-                         <button onClick={(e) => handleDeleteExercise(e, ex.id)} className="p-2 text-[#8e8e93] hover:text-[#FF3B30] transition-colors"><Trash2 className="w-4 h-4" /></button>
+                         confirmDeleteId === ex.id ? (
+                           <div className="flex gap-2 items-center">
+                             <span className="text-[#8e8e93] text-xs font-bold">Sure?</span>
+                             <button onClick={(e) => handleDeleteExercise(e, ex.id)} className="px-3 py-1 bg-[#FF3B30] text-white text-xs font-bold rounded-lg hover:bg-[#FF3B30]/90 transition-colors">Yes</button>
+                             <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }} className="px-3 py-1 bg-[#1C1C1E] text-white text-xs font-bold rounded-lg border border-white/10 hover:bg-white/5 transition-colors">No</button>
+                           </div>
+                         ) : (
+                           <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(ex.id!); }} className="p-2 text-[#8e8e93] hover:text-[#FF3B30] transition-colors"><Trash2 className="w-4 h-4" /></button>
+                         )
                        )}
                      </div>
                    ))}

@@ -121,7 +121,7 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
   const fetchClients = async (tEmail: string) => { 
       try { 
           const all = await fetchAllClients(); 
-          setClients(all.filter(c => c.trainerEmail === tEmail)); 
+          setClients(all.filter(c => c.trainerEmail === tEmail || c.secondaryTrainerEmail === tEmail)); 
           setGlobalClients(all);
           const reviews = await fetchTrainerReviews(tEmail);
           setTrainerReviews(reviews);
@@ -138,7 +138,7 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
 
   const handleDeleteMeasurement = async (m: BodyMeasurement) => {
       if (!m.id) return;
-      if (!confirm('Are you sure you want to delete this measurement?')) return;
+      // if (!confirm('Are you sure you want to delete this measurement?')) return;
       try {
           await deleteMeasurement(m.id);
           setClientMeasurements(prev => prev.filter(x => x.id !== m.id));
@@ -191,8 +191,8 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
   };
 
   const handleDeleteLog = async (log: ExerciseLog) => {
-    const isConfirmed = window.confirm(`Are you sure you want to delete this log? This action cannot be undone.`);
-    if (!isConfirmed) return;
+    // const isConfirmed = window.confirm(`Are you sure you want to delete this log? This action cannot be undone.`);
+    // if (!isConfirmed) return;
     try {
       await deleteLogRecord(log);
       
@@ -508,7 +508,7 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
   );
 }
 
-function LoggerForm({ 
+export function LoggerForm({ 
   clientName,
   exercises,
   onLogAdded
@@ -597,17 +597,18 @@ function LoggerForm({
 
         <div>
           <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Exercise Name</label>
-          {filteredExercises.length > 0 ? (
-            <select required value={exercise} onChange={(e) => setExercise(e.target.value)}
-              className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors"
-            >
-              <option value="" disabled>Select an exercise</option>
-              {filteredExercises.map((ex) => <option key={ex.name} value={ex.name}>{ex.name}</option>)}
-            </select>
-          ) : (
-            <input type="text" required placeholder="e.g. Barbell Squats" value={exercise} onChange={(e) => setExercise(e.target.value)}
-              className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors" />
-          )}
+          <input 
+            list="exercises-list" 
+            type="text" 
+            required 
+            placeholder="Search or add custom exercise..." 
+            value={exercise} 
+            onChange={(e) => setExercise(e.target.value)}
+            className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors" 
+          />
+          <datalist id="exercises-list">
+            {filteredExercises.map((ex) => <option key={ex.name} value={ex.name}>{ex.name}</option>)}
+          </datalist>
         </div>
 
         <div className="grid grid-cols-3 gap-3">

@@ -162,7 +162,7 @@ export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwit
 
   const handleDeleteMeasurement = async (m: BodyMeasurement) => {
       if (!m.id) return;
-      if (!confirm('Are you sure you want to delete this measurement?')) return;
+      // if (!confirm('Are you sure you want to delete this measurement?')) return;
       try {
           await deleteMeasurement(m.id);
           setClientMeasurements(prev => prev.filter(x => x.id !== m.id));

@@ -4,6 +4,7 @@ import { db } from "./firebase";
 export type ClientProfile = {
   name: string;
   trainerEmail: string;
+  secondaryTrainerEmail?: string;
   phone?: string;
   dob?: string;
   height?: string;
