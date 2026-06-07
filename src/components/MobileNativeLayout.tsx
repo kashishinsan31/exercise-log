@@ -20,7 +20,7 @@ export function MobileNativeLayout({ children, onBack, onLogout, onRefresh, titl
       <div className="w-full h-full bg-[#0A0A0C] text-white relative flex flex-col">
         
         {/* Header content */}
-        <div className="px-5 pt-4 pb-3 flex justify-between items-center z-10 shrink-0">
+        <div className="px-5 pt-[max(env(safe-area-inset-top),16px)] pb-3 flex justify-between items-center z-10 shrink-0">
           <div className="flex items-center gap-3">
              {onBack && (
                <button onClick={onBack} className="w-9 h-9 bg-[#1C1C1E] rounded-full flex items-center justify-center relative overflow-hidden shrink-0 shadow-sm border border-white/5">
@@ -39,12 +39,12 @@ export function MobileNativeLayout({ children, onBack, onLogout, onRefresh, titl
           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
              {headerRight}
              {onRefresh && (
-               <button onClick={onRefresh} className="w-9 h-9 bg-[#1C1C1E] hover:bg-[#2C2C2E] rounded-full flex items-center justify-center text-white transition-colors shadow-sm">
+               <button onClick={onRefresh} className="w-9 h-9 bg-[#1C1C1E] hover:bg-[#2C2C2E] rounded-full flex items-center justify-center text-white transition-colors shadow-sm shrink-0">
                   <RefreshCw className="w-4 h-4 text-white/80" />
                </button>
              )}
              {onLogout && (
-               <button onClick={onLogout} className="w-9 h-9 bg-[#FF3B30]/10 hover:bg-[#FF3B30]/20 rounded-full flex items-center justify-center text-[#FF3B30] transition-colors shadow-sm">
+               <button onClick={onLogout} className="w-9 h-9 bg-[#FF3B30]/10 hover:bg-[#FF3B30]/20 rounded-full flex items-center justify-center text-[#FF3B30] transition-colors shadow-sm shrink-0">
                   <LogOut className="w-4 h-4 ml-0.5" />
                </button>
              )}
@@ -52,7 +52,7 @@ export function MobileNativeLayout({ children, onBack, onLogout, onRefresh, titl
         </div>
 
         {/* Scrollable Content Area */}
-        <div className={`flex-1 overflow-y-auto scrollbar-hide px-5 ${bottomNav ? 'pb-24' : 'pb-6'} relative z-0`}>
+        <div className={`flex-1 overflow-y-auto scrollbar-hide px-5 ${bottomNav ? 'pb-[calc(96px+env(safe-area-inset-bottom))]' : 'pb-[max(24px,env(safe-area-inset-bottom))]'} relative z-0`}>
           <AnimatePresence mode="wait">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -68,7 +68,7 @@ export function MobileNativeLayout({ children, onBack, onLogout, onRefresh, titl
 
         {/* Native Bottom Tab Bar (Glassmorphism) */}
         {bottomNav && (
-          <div className="absolute bottom-0 inset-x-0 h-[72px] bg-[#0A0A0C]/90 backdrop-blur-xl border-t border-white/5 flex items-center px-2 z-50 pb-2 justify-between custom-scrollbar overflow-x-auto sm:justify-around">
+          <div className="absolute bottom-0 inset-x-0 h-[calc(72px+env(safe-area-inset-bottom))] bg-[#0A0A0C]/90 backdrop-blur-xl border-t border-white/5 flex items-center px-2 z-50 pb-[env(safe-area-inset-bottom)] justify-between custom-scrollbar overflow-x-auto sm:justify-around">
             {bottomNav}
           </div>
         )}
