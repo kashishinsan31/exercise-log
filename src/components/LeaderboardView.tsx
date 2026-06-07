@@ -16,16 +16,18 @@ export function LeaderboardView({ logs, clients, trainers, currentRole, loggedIn
   const [viewType, setViewType] = useState<'overall' | 'trainers' | 'myClients'>('overall');
 
   const stats = useMemo(() => {
+    const now = new Date();
     const startDate = timeFilter === 'month' 
-      ? startOfMonth(new Date()) 
-      : startOfWeek(new Date(), { weekStartsOn: 1 });
+      ? startOfMonth(now) 
+      : startOfWeek(now, { weekStartsOn: 1 });
+    startDate.setHours(0, 0, 0, 0);
       
     let validLogs = logs.filter(l => {
       if (!l || !l.date) return false;
       try {
         const parsed = parseISO(l.date);
         if (isNaN(parsed.getTime())) return false;
-        return isAfter(parsed, startDate) || parsed.getTime() === startDate.getTime();
+        return parsed.getTime() >= startDate.getTime();
       } catch (e) {
         return false;
       }
@@ -38,7 +40,7 @@ export function LeaderboardView({ logs, clients, trainers, currentRole, loggedIn
     validLogs.forEach(log => {
       const volume = (Number(log.sets) || 0) * (Number(log.reps) || 0) * (Number(log.weight) || 0);
       if (volume > 0 && log.clientName) {
-        const nameKey = log.clientName.trim();
+        const nameKey = log.clientName.trim().toLowerCase();
         clientVolumes[nameKey] = (clientVolumes[nameKey] || 0) + volume;
       }
     });
@@ -47,18 +49,37 @@ export function LeaderboardView({ logs, clients, trainers, currentRole, loggedIn
     clients.forEach(c => {
       if (!c || !c.name) return;
       const cleanName = c.name.trim();
-      const vol = clientVolumes[cleanName] || 0;
+      const matchKey = cleanName.toLowerCase();
+      const vol = clientVolumes[matchKey] || 0;
       if (c.trainerEmail) {
         const cleanEmail = c.trainerEmail.trim().toLowerCase();
         trainerVolumes[cleanEmail] = (trainerVolumes[cleanEmail] || 0) + vol;
         
         if (!trainerClients[cleanEmail]) trainerClients[cleanEmail] = {};
-        trainerClients[cleanEmail][cleanName] = vol;
+        trainerClients[cleanEmail][cleanName] = (trainerClients[cleanEmail][cleanName] || 0) + vol;
       }
     });
 
-    const overallClients = Object.entries(clientVolumes)
-      .map(([name, volume]) => ({ name, volume }))
+    // Match registered clients first
+    const mappedClientNames = new Set(clients.map(c => c.name.trim().toLowerCase()));
+    const clientsList = clients.map(c => {
+      const matchKey = c.name.trim().toLowerCase();
+      const vol = clientVolumes[matchKey] || 0;
+      return { name: c.name, volume: vol };
+    });
+
+    // Fallback for logged names not found in registered client list
+    Object.entries(clientVolumes).forEach(([nameKey, vol]) => {
+      if (!mappedClientNames.has(nameKey)) {
+        // Find if we have original casing in any log
+        const originalLog = validLogs.find(l => l.clientName.trim().toLowerCase() === nameKey);
+        const originalName = originalLog ? originalLog.clientName.trim() : nameKey;
+        clientsList.push({ name: originalName, volume: vol });
+      }
+    });
+
+    const overallClients = clientsList
+      .filter(c => c.volume > 0)
       .sort((a, b) => b.volume - a.volume);
 
     const overallTrainers = Object.entries(trainerVolumes)
@@ -78,12 +99,12 @@ export function LeaderboardView({ logs, clients, trainers, currentRole, loggedIn
           topClientVolume: topClient?.[1] || 0
         };
       })
-      .sort((a,b) => b.topClientVolume - a.topClientVolume);
+      .sort((a, b) => b.topClientVolume - a.topClientVolume);
       
-    const myClientsList = Object.entries(clientVolumes)
-      .map(([name, volume]) => ({ name, volume }))
+    const myClientsList = clientsList
       .filter(item => {
-        const client = clients.find(c => c?.name?.trim().toLowerCase() === item.name.toLowerCase());
+        const matchKey = item.name.trim().toLowerCase();
+        const client = clients.find(c => c?.name?.trim().toLowerCase() === matchKey);
         return client?.trainerEmail?.trim().toLowerCase() === loggedInUserEmail?.trim().toLowerCase();
       })
       .sort((a, b) => b.volume - a.volume);
@@ -98,19 +119,44 @@ export function LeaderboardView({ logs, clients, trainers, currentRole, loggedIn
         <p className="text-[#8e8e93] text-sm px-1 mt-1">Automatic progress reports & rankings.</p>
       </div>
 
-      <div className="flex gap-2">
-         <button onClick={() => setTimeFilter('month')} className={`px-4 py-1.5 rounded-full text-xs font-semibold border ${timeFilter === 'month' ? 'bg-white/10 text-white border-white/20' : 'border-transparent text-[#8e8e93] hover:text-white'}`}>This Month</button>
-         <button onClick={() => setTimeFilter('week')} className={`px-4 py-1.5 rounded-full text-xs font-semibold border ${timeFilter === 'week' ? 'bg-white/10 text-white border-white/20' : 'border-transparent text-[#8e8e93] hover:text-white'}`}>This Week</button>
+      <div className="bg-[#1C1C1E] p-1 rounded-full flex w-fit border border-white/5 gap-1 shadow-inner">
+         <button 
+           onClick={() => setTimeFilter('month')} 
+           className={`px-5 py-2 rounded-full text-xs font-bold transition-all ${timeFilter === 'month' ? 'bg-white/10 text-white shadow-md' : 'text-[#8e8e93] hover:text-white bg-transparent'}`}
+         >
+           This Month
+         </button>
+         <button 
+           onClick={() => setTimeFilter('week')} 
+           className={`px-5 py-2 rounded-full text-xs font-bold transition-all ${timeFilter === 'week' ? 'bg-white/10 text-white shadow-md' : 'text-[#8e8e93] hover:text-white bg-transparent'}`}
+         >
+           This Week
+         </button>
       </div>
 
       {currentRole !== 'client' && (
-        <div className="flex gap-2">
-           <button onClick={() => setViewType('overall')} className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${viewType === 'overall' ? 'bg-[#FF3B30] text-white' : 'bg-[#1C1C1E] text-[#8e8e93]'}`}>Overall</button>
+        <div className="bg-[#1C1C1E] p-1 rounded-2xl flex w-full border border-white/5 gap-1">
+           <button 
+             onClick={() => setViewType('overall')} 
+             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${viewType === 'overall' ? 'bg-[#007AFF] text-white shadow-md' : 'text-[#8e8e93] hover:text-white'}`}
+           >
+             Overall Leaderboard
+           </button>
            {currentRole === 'trainer' && (
-             <button onClick={() => setViewType('myClients')} className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${viewType === 'myClients' ? 'bg-[#FF3B30] text-white' : 'bg-[#1C1C1E] text-[#8e8e93]'}`}>My Clients</button>
+             <button 
+               onClick={() => setViewType('myClients')} 
+               className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${viewType === 'myClients' ? 'bg-[#34C759] text-white shadow-md' : 'text-[#8e8e93] hover:text-white'}`}
+             >
+               My Clients Only
+             </button>
            )}
            {currentRole === 'admin' && (
-             <button onClick={() => setViewType('trainers')} className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${viewType === 'trainers' ? 'bg-[#FF3B30] text-white' : 'bg-[#1C1C1E] text-[#8e8e93]'}`}>By Trainer</button>
+             <button 
+               onClick={() => setViewType('trainers')} 
+               className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${viewType === 'trainers' ? 'bg-[#007AFF] text-white shadow-md' : 'text-[#8e8e93] hover:text-white'}`}
+             >
+               By Trainer
+             </button>
            )}
         </div>
       )}

@@ -223,7 +223,7 @@ export async function deleteTrainerRecord(email: string) {
 }
 
 export async function fetchAllLogs() {
-  const q = query(collection(db, "exerciseLogs"));
+  const q = query(collection(db, "logs"));
   const snapshot = await getDocs(q);
   const data: ExerciseLog[] = [];
   snapshot.forEach(doc => {

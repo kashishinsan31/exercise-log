@@ -158,6 +158,17 @@ export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwit
     }
   }, [selectedClient]);
 
+  React.useEffect(() => {
+    if (selectedClient && globalClients.length > 0) {
+      const match = globalClients.find(c => c.name.toLowerCase() === selectedClient.name.toLowerCase());
+      if (match && match.trainerEmail !== selectedClient.trainerEmail) {
+         const updated = { ...selectedClient, trainerEmail: match.trainerEmail };
+         setSelectedClient(updated);
+         localStorage.setItem('protrainer_session', JSON.stringify({ role: 'client', user: updated }));
+      }
+    }
+  }, [globalClients, selectedClient]);
+
   const fetchClientData = async (user: {name: string, trainerEmail?: string}) => {
     // With real-time subscriptions, manual fetch isn't strictly necessary,
     // but the refresh button gives users confidence.
