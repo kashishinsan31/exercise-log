@@ -557,9 +557,9 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
           {showAddTrainer && (
              <form onSubmit={handleAddTrainer} className="bg-[#1C1C1E] p-4 rounded-2xl border border-white/5 space-y-3">
                 <h4 className="text-xs font-bold text-[#8e8e93] uppercase tracking-wider mb-2">New Trainer</h4>
-                <input type="text" placeholder="Name" value={newTrainerName} onChange={e => setNewTrainerName(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#FF3B30]" />
+                <input type="text" placeholder="Name" value={newTrainerName} onChange={e => setNewTrainerName(e.target.value.replace(/[0-9]/g, ''))} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#FF3B30]" />
                 <input type="email" placeholder="Email" value={newTrainerEmail} onChange={e => setNewTrainerEmail(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#FF3B30]" />
-                <input type="tel" placeholder="Mobile Number (Unique Identity)" value={newTrainerPhone} onChange={e => setNewTrainerPhone(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#FF3B30]" />
+                <input type="tel" placeholder="Mobile Number (Unique Identity)" value={newTrainerPhone} onChange={e => setNewTrainerPhone(e.target.value.replace(/[^0-9]/g, ''))} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#FF3B30]" />
                 <input type="password" placeholder="Password (Optional)" value={newTrainerPassword} onChange={e => setNewTrainerPassword(e.target.value)} className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#FF3B30]" />
                 <button type="submit" disabled={isAddingTrainer} className="w-full bg-[#FF3B30] text-white font-bold py-3 rounded-xl flex justify-center items-center mt-2 disabled:opacity-50">
                   {isAddingTrainer ? <Loader2 className="w-5 h-5 animate-spin"/> : 'Add Trainer'}
@@ -577,11 +577,11 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Trainer Name</label>
-                          <input type="text" placeholder="Name" value={editTrainerName} onChange={e => setEditTrainerName(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#FF3B30] outline-none" />
+                          <input type="text" placeholder="Name" value={editTrainerName} onChange={e => setEditTrainerName(e.target.value.replace(/[0-9]/g, ''))} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#FF3B30] outline-none" />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Mobile No.</label>
-                          <input type="tel" placeholder="Mobile Number" value={editTrainerPhone} onChange={e => setEditTrainerPhone(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#FF3B30] outline-none" />
+                          <input type="tel" placeholder="Mobile Number" value={editTrainerPhone} onChange={e => setEditTrainerPhone(e.target.value.replace(/[^0-9]/g, ''))} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#FF3B30] outline-none" />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Account Password</label>
@@ -642,7 +642,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
           {showAddClient && (
              <form onSubmit={handleCreateClient} className="bg-[#1C1C1E] p-4 rounded-2xl border border-white/5 space-y-3">
                 <h4 className="text-xs font-bold text-[#8e8e93] uppercase tracking-wider mb-2">New Client Profile</h4>
-                <input type="text" placeholder="Name" value={newClientName} onChange={e => setNewClientName(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
+                <input type="text" placeholder="Name" value={newClientName} onChange={e => setNewClientName(e.target.value.replace(/[0-9]/g, ''))} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
                 <select value={newClientTrainer} onChange={e => setNewClientTrainer(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]">
                   <option value="" disabled>Assign Primary Trainer...</option>
                   {trainers.map(t => <option key={t.email} value={t.email}>{t.name} ({t.email})</option>)}
@@ -651,7 +651,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                   <option value="">No Secondary Trainer</option>
                   {trainers.map(t => <option key={t.email} value={t.email}>{t.name} ({t.email})</option>)}
                 </select>
-                <input type="tel" placeholder="Mobile Number (Unique Identity)" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
+                <input type="tel" placeholder="Mobile Number (Unique Identity)" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value.replace(/[^0-9]/g, ''))} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#007AFF]" />
                 <input 
    type="date" 
    placeholder="DOB" 
@@ -699,7 +699,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                        <div className="grid grid-cols-2 gap-3">
                          <div className="space-y-1">
                            <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Mobile No.</label>
-                           <input type="tel" placeholder="Mobile Number" value={editClientPhone} onChange={e => setEditClientPhone(e.target.value)} required className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#007AFF] outline-none" />
+                           <input type="tel" placeholder="Mobile Number" value={editClientPhone} onChange={e => setEditClientPhone(e.target.value.replace(/[^0-9]/g, ''))} required className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#007AFF] outline-none" />
                          </div>
                          <div className="space-y-1">
                            <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Date of Birth</label>
