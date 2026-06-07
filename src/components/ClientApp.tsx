@@ -4,7 +4,7 @@ import { Loader2, Dumbbell, Lock, FileText, Activity, User, PlusCircle } from 'l
 import { ClientDashboard } from './ClientDashboard';
 import { MobileNativeLayout, MobileTabItem } from './MobileNativeLayout';
 
-export function ClientApp({ onBack }: { onBack: () => void }) {
+export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwitchRole?: (role: any) => void }) {
   const [step, setStep] = useState<'login' | 'dashboard'>(() => {
     const saved = localStorage.getItem('protrainer_session');
     if (saved) {
@@ -253,6 +253,26 @@ export function ClientApp({ onBack }: { onBack: () => void }) {
         >
           {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Secure Login'}
         </button>
+
+        {onSwitchRole && (
+          <div className="mt-8 flex justify-center gap-6">
+            <button 
+              type="button" 
+              onClick={() => onSwitchRole('trainer')} 
+              className="text-[#8e8e93] text-sm font-medium hover:text-white transition-colors"
+            >
+              Trainer Login
+            </button>
+            <span className="text-[#3a3a3c]">•</span>
+            <button 
+              type="button" 
+              onClick={() => onSwitchRole('admin')} 
+              className="text-[#8e8e93] text-sm font-medium hover:text-white transition-colors"
+            >
+              Admin Login
+            </button>
+          </div>
+        )}
       </form>
     </MobileNativeLayout>
   );

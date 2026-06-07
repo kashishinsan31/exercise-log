@@ -135,7 +135,15 @@ export async function deleteClientRecord(name: string, trainerEmail: string) {
 
 export async function fetchExercises() {
    const snap = await getDocs(collection(db, "exercises"));
-   return snap.docs.map(d => d.data() as { name: string, group: string });
+   return snap.docs.map(d => ({ id: d.id, name: d.data().name as string, group: d.data().group as string }));
+}
+
+export async function addExerciseRecord(exercise: { name: string; group: string }) {
+  await addDoc(collection(db, "exercises"), exercise);
+}
+
+export async function deleteExerciseRecord(id: string) {
+  await deleteDoc(doc(db, "exercises", id));
 }
 
 export async function doLogin(email: string, password: string, role: string) {

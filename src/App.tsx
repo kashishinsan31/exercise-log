@@ -7,99 +7,73 @@ import { MobileNativeLayout } from './components/MobileNativeLayout';
 import { motion } from 'motion/react';
 
 export default function App() {
-  const [role, setRole] = useState<'none' | 'trainer' | 'client' | 'admin'>('none');
+  const [role, setRole] = useState<'splash' | 'none' | 'trainer' | 'client' | 'admin'>('splash');
 
   useEffect(() => {
-    const savedSession = localStorage.getItem('protrainer_session');
-    if (savedSession) {
-      try {
-        const { role: savedRole } = JSON.parse(savedSession);
-        if (savedRole) setRole(savedRole);
-      } catch (e) {}
-    }
+    // Show splash screen for 2.5 seconds
+    const t = setTimeout(() => {
+      const savedSession = localStorage.getItem('protrainer_session');
+      if (savedSession) {
+        try {
+          const { role: savedRole } = JSON.parse(savedSession);
+          if (savedRole) {
+             setRole(savedRole);
+             return;
+          }
+        } catch (e) {}
+      }
+      setRole('client'); // Default explicitly to client login after splash
+    }, 2500);
+    return () => clearTimeout(t);
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('protrainer_session');
-    setRole('none');
+    setRole('client');
   };
+
+  if (role === 'splash') {
+     return (
+       <div className="flex flex-col items-center justify-center h-[100dvh] w-full bg-[#0A0A0C]">
+          <motion.div 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="w-48 h-48 bg-white rounded-full flex flex-col items-center justify-center shadow-[0_8px_32px_rgba(255,255,255,0.1)] overflow-hidden border-[8px] border-black relative mb-8"
+          >
+            <img 
+               src="/logo.png" 
+               alt="Waiter Walk Logo" 
+               className="object-cover w-full h-full absolute inset-0 z-20"
+               onError={(e) => {
+                 (e.target as HTMLImageElement).style.display = 'none';
+                 const nextSibling = (e.target as HTMLImageElement).nextElementSibling as HTMLElement;
+                 if (nextSibling) nextSibling.style.display = 'flex';
+               }}
+            />
+            <div className="hidden absolute inset-0 bg-[#0A0A0C] flex-col items-center justify-center z-10">
+               <Dumbbell className="w-16 h-16 text-white mb-2" />
+            </div>
+          </motion.div>
+          <motion.span 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
+            className="text-white text-2xl font-black tracking-widest text-center leading-none mt-4 uppercase"
+          >
+            Waiter Walk
+          </motion.span>
+       </div>
+     );
+  }
 
   if (role === 'admin') {
     return <AdminApp onBack={handleLogout} />;
-  }
-
-  if (role === 'client') {
-    return <ClientApp onBack={handleLogout} />;
   }
   
   if (role === 'trainer') {
     return <TrainerApp onBack={handleLogout} />;
   }
 
-  return (
-    <MobileNativeLayout
-      title="ProTrainer"
-      subtitle="Welcome"
-    >
-      <div className="flex flex-col items-center justify-center mt-12 mb-8">
-         <div className="w-20 h-20 bg-[#1C1C1E] rounded-3xl flex items-center justify-center shadow-[0_8px_32px_rgba(52,199,89,0.2)] mb-6 overflow-hidden relative">
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#34C759]/20 to-transparent"></div>
-            <Dumbbell className="w-10 h-10 text-[#34C759] relative z-10" />
-         </div>
-         <h2 className="text-[#8e8e93] text-sm text-center max-w-[250px]">
-           Select your portal to continue.
-         </h2>
-      </div>
-
-      <div className="space-y-4 w-full">
-        <motion.button 
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setRole('client')}
-          className="w-full flex items-center justify-between bg-[#1C1C1E] rounded-[20px] p-5 border border-white/5"
-        >
-          <div className="flex items-center gap-4">
-             <div className="w-12 h-12 rounded-full bg-[#007AFF]/10 flex items-center justify-center">
-                <UserIcon className="w-6 h-6 text-[#007AFF]" />
-             </div>
-             <div className="text-left">
-               <div className="text-white font-semibold text-lg">Client</div>
-               <div className="text-[#8e8e93] text-sm">View workouts & stats</div>
-             </div>
-          </div>
-        </motion.button>
-
-        <motion.button 
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setRole('trainer')}
-          className="w-full flex items-center justify-between bg-[#1C1C1E] rounded-[20px] p-5 border border-white/5"
-        >
-          <div className="flex items-center gap-4">
-             <div className="w-12 h-12 rounded-full bg-[#FF9500]/10 flex items-center justify-center">
-                <Dumbbell className="w-6 h-6 text-[#FF9500]" />
-             </div>
-             <div className="text-left">
-               <div className="text-white font-semibold text-lg">Trainer</div>
-               <div className="text-[#8e8e93] text-sm">Manage your clients</div>
-             </div>
-          </div>
-        </motion.button>
-
-        <motion.button 
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setRole('admin')}
-          className="w-full flex items-center justify-between bg-[#1C1C1E] rounded-[20px] p-5 border border-white/5"
-        >
-          <div className="flex items-center gap-4">
-             <div className="w-12 h-12 rounded-full bg-[#FF3B30]/10 flex items-center justify-center">
-                <Shield className="w-6 h-6 text-[#FF3B30]" />
-             </div>
-             <div className="text-left">
-               <div className="text-white font-semibold text-lg">Admin View</div>
-               <div className="text-[#8e8e93] text-sm">System configuration</div>
-             </div>
-          </div>
-        </motion.button>
-      </div>
-    </MobileNativeLayout>
-  );
+  return <ClientApp onBack={handleLogout} onSwitchRole={(r) => setRole(r)} />;
 }

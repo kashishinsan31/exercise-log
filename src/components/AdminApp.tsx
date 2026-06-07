@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, LogOut, Plus, Users, Dumbbell, Activity, LineChart as LineChartIcon, Loader2, Database, Link as LinkIcon, UserPlus, Trash2, Edit2, X, Check, Search, Menu } from 'lucide-react';
-import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, ClientProfile, ExerciseLog, BodyMeasurement, initializeDatabase, addTrainer, addClient, deleteTrainerRecord, deleteClientRecord, updateTrainer, updateClient } from '../lib/db';
+import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, fetchExercises, addExerciseRecord, deleteExerciseRecord, ClientProfile, ExerciseLog, BodyMeasurement, initializeDatabase, addTrainer, addClient, deleteTrainerRecord, deleteClientRecord, updateTrainer, updateClient } from '../lib/db';
 import { ClientDashboard } from './ClientDashboard';
 import { MobileNativeLayout, MobileTabItem } from './MobileNativeLayout';
 
@@ -10,17 +10,24 @@ interface TrackedTrainer {
   email: string;
 }
 
+interface ExerciseItem {
+  id?: string;
+  name: string;
+  group: string;
+}
+
 export function AdminApp({ onBack }: { onBack: () => void }) {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'trainers' | 'clients' | 'overview'>('trainers');
+  const [activeTab, setActiveTab] = useState<'trainers' | 'clients' | 'exercises' | 'overview'>('trainers');
 
   // Dash State
   const [dbSpreadsheetId, setDbSpreadsheetId] = useState<string>('');
   const [trainers, setTrainers] = useState<TrackedTrainer[]>([]);
   const [clients, setClients] = useState<ClientProfile[]>([]);
+  const [exercises, setExercises] = useState<ExerciseItem[]>([]);
   
   const [isAddingDB, setIsAddingDB] = useState(false);
   const [addDBError, setAddDBError] = useState('');
@@ -43,6 +50,12 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const [newClientDob, setNewClientDob] = useState('');
   const [newClientHeight, setNewClientHeight] = useState('');
   const [isAddingClient, setIsAddingClient] = useState(false);
+
+  // Add Exercise State
+  const [showAddExercise, setShowAddExercise] = useState(false);
+  const [newExerciseName, setNewExerciseName] = useState('');
+  const [newExerciseGroup, setNewExerciseGroup] = useState('');
+  const [isAddingExercise, setIsAddingExercise] = useState(false);
 
   // Edit Trainer State
   const [editingTrainerEmail, setEditingTrainerEmail] = useState<string | null>(null);
@@ -91,8 +104,10 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
       try {
           const tData = await fetchAllTrainers();
           const cData = await fetchAllClients();
+          const eData = await fetchExercises();
           setTrainers(tData || []);
           setClients(cData || []);
+          setExercises(eData || []);
           setAddDBError('');
       } catch (err: any) {
          console.error('Failed to load system data:', err);
@@ -158,7 +173,37 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
       }
   };
 
+  const handleAddExercise = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!newExerciseName || !newExerciseGroup) return;
+      setIsAddingExercise(true);
+      try {
+          await addExerciseRecord({ name: newExerciseName, group: newExerciseGroup });
+          await loadSystemData();
+          setShowAddExercise(false);
+          setNewExerciseName('');
+          setNewExerciseGroup('');
+      } catch (err: any) {
+          alert('Error adding exercise: ' + err.message);
+      } finally {
+          setIsAddingExercise(false);
+      }
+  };
+
+  const handleDeleteExercise = async (e: React.MouseEvent, id?: string) => {
+      e.stopPropagation();
+      if (!id) return;
+      if (!confirm('Are you sure you want to delete this exercise?')) return;
+      try {
+          await deleteExerciseRecord(id);
+          setExercises(prev => prev.filter(ex => ex.id !== id));
+      } catch (err: any) {
+          alert(err.message);
+      }
+  };
+
   const handleDeleteTrainer = async (e: React.MouseEvent, email: string) => { e.stopPropagation(); if (!confirm('Are you sure you want to delete trainer ' + email + '?')) return; try { await deleteTrainerRecord(email); setTrainers(prev => prev.filter(t => t.email !== email)); if (selectedTrainer?.email === email) { setSelectedTrainer(null); setTrainerClients([]); } } catch (err: any) { alert(err.message); } }; 
+
   const handleDeleteClient = async (e: React.MouseEvent, name: string, trainerEmail: string) => { e.stopPropagation(); if (!confirm('Are you sure you want to delete client ' + name + '?')) return; try { await deleteClientRecord(name, trainerEmail); setClients(prev => prev.filter(c => !(c.name === name && c.trainerEmail === trainerEmail))); if (selectedTrainer?.email === trainerEmail) { setTrainerClients(prev => prev.filter(c => c.name !== name)); } if (selectedClient?.name === name) { setSelectedClient(null); } } catch (err: any) { alert(err.message); } }; 
 
   const handleEditTrainerSave = async (e: React.MouseEvent | React.FormEvent, email: string) => {
@@ -309,6 +354,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
         <>
           <MobileTabItem icon={<Dumbbell />} label="Trainers" isActive={activeTab === 'trainers'} onClick={() => setActiveTab('trainers')} activeColor="text-[#FF3B30]" />
           <MobileTabItem icon={<Users />} label="Clients" isActive={activeTab === 'clients'} onClick={() => setActiveTab('clients')} activeColor="text-[#FF3B30]" />
+          <MobileTabItem icon={<Activity />} label="Exercises" isActive={activeTab === 'exercises'} onClick={() => setActiveTab('exercises')} activeColor="text-[#FF3B30]" />
         </>
       }
     >
@@ -356,12 +402,21 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
              {trainers.map((t, idx) => (
                 <div key={idx} className="bg-[#1C1C1E] rounded-2xl p-4 border border-white/5 flex flex-col gap-3">
                   {editingTrainerEmail === t.email ? (
-                     <div className="space-y-2">
-                        <input type="text" placeholder="Name" value={editTrainerName} onChange={e => setEditTrainerName(e.target.value)} className="w-full text-sm bg-[#0A0A0C] border border-white/10 rounded-lg px-3 py-2 text-white" />
-                        <input type="password" placeholder="New Password" value={editTrainerPassword} onChange={e => setEditTrainerPassword(e.target.value)} className="w-full text-sm bg-[#0A0A0C] border border-white/10 rounded-lg px-3 py-2 text-white" />
-                        <div className="flex gap-2 justify-end">
-                          <button onClick={() => setEditingTrainerEmail(null)} className="p-2 text-[#8e8e93]"><X className="w-5 h-5"/></button>
-                          <button onClick={(e) => handleEditTrainerSave(e, t.email)} className="p-2 text-[#34C759]"><Check className="w-5 h-5"/></button>
+                     <div className="space-y-4 bg-[#0A0A0C] p-4 rounded-xl border border-white/10">
+                        <div className="flex justify-between items-center bg-transparent border-none">
+                            <h4 className="text-white text-sm font-bold uppercase tracking-wider">Edit Trainer Profile</h4>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Trainer Name</label>
+                          <input type="text" placeholder="Name" value={editTrainerName} onChange={e => setEditTrainerName(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#FF3B30] outline-none" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Account Password</label>
+                          <input type="password" placeholder="Leave blank to keep current" value={editTrainerPassword} onChange={e => setEditTrainerPassword(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#FF3B30] outline-none" />
+                        </div>
+                        <div className="flex gap-2 justify-end mt-2">
+                          <button onClick={() => setEditingTrainerEmail(null)} className="px-4 py-2 border border-[#8e8e93]/30 text-[#8e8e93] text-sm font-bold rounded-lg hover:text-white hover:bg-white/5 transition-colors">Cancel</button>
+                          <button onClick={(e) => handleEditTrainerSave(e, t.email)} className="px-4 py-2 bg-[#FF3B30] text-white text-sm font-bold rounded-lg hover:bg-[#FF3B30]/90 transition-colors shadow-sm">Save Changes</button>
                         </div>
                      </div>
                   ) : (
@@ -391,7 +446,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
              )}
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'clients' ? (
         <div className="space-y-6 pb-20">
           <div className="flex justify-between items-center bg-[#1C1C1E] p-4 rounded-2xl border border-white/5">
             <div>
@@ -429,14 +484,33 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                return (
                <div key={idx} className="bg-[#1C1C1E] rounded-2xl p-4 border border-white/5 flex flex-col gap-3">
                  {editingClientKey === cKey ? (
-                    <div className="space-y-2">
-                       <input type="text" placeholder="Phone" value={editClientPhone} onChange={e => setEditClientPhone(e.target.value)} className="w-full text-sm bg-[#0A0A0C] border border-white/10 rounded-lg px-3 py-2 text-white" />
-                       <input type="date" placeholder="DOB" value={editClientDob} onChange={e => setEditClientDob(e.target.value)} className="w-full text-sm bg-[#0A0A0C] border border-white/10 rounded-lg px-3 py-2 text-white" />
-                       <input type="text" placeholder="Height" value={editClientHeight} onChange={e => setEditClientHeight(e.target.value)} className="w-full text-sm bg-[#0A0A0C] border border-white/10 rounded-lg px-3 py-2 text-white" />
-                       <input type="password" placeholder="New Password" value={editClientPassword} onChange={e => setEditClientPassword(e.target.value)} className="w-full text-sm bg-[#0A0A0C] border border-white/10 rounded-lg px-3 py-2 text-white" />
-                       <div className="flex gap-2 justify-end">
-                         <button onClick={() => setEditingClientKey(null)} className="p-2 text-[#8e8e93]"><X className="w-5 h-5"/></button>
-                         <button onClick={(e) => handleEditClientSave(e, c.name, c.trainerEmail)} className="p-2 text-[#34C759]"><Check className="w-5 h-5"/></button>
+                    <div className="space-y-4 bg-[#0A0A0C] p-4 rounded-xl border border-white/10">
+                       <div className="flex justify-between items-center">
+                           <h4 className="text-white text-sm font-bold uppercase tracking-wider">Edit Client Profile</h4>
+                       </div>
+                       <div className="grid grid-cols-2 gap-3">
+                         <div className="space-y-1">
+                           <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Phone</label>
+                           <input type="text" placeholder="Phone" value={editClientPhone} onChange={e => setEditClientPhone(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#007AFF] outline-none" />
+                         </div>
+                         <div className="space-y-1">
+                           <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Date of Birth</label>
+                           <input type="date" value={editClientDob} onChange={e => setEditClientDob(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#007AFF] outline-none" />
+                         </div>
+                       </div>
+                       <div className="grid grid-cols-2 gap-3">
+                         <div className="space-y-1">
+                           <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Height</label>
+                           <input type="text" placeholder="Height" value={editClientHeight} onChange={e => setEditClientHeight(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#007AFF] outline-none" />
+                         </div>
+                         <div className="space-y-1">
+                           <label className="text-[10px] text-[#8e8e93] font-bold uppercase ml-1">Account Password</label>
+                           <input type="password" placeholder="Leave blank to keep" value={editClientPassword} onChange={e => setEditClientPassword(e.target.value)} className="w-full text-sm bg-[#1C1C1E] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-[#007AFF] outline-none" />
+                         </div>
+                       </div>
+                       <div className="flex gap-2 justify-end mt-2">
+                         <button onClick={() => setEditingClientKey(null)} className="px-4 py-2 border border-[#8e8e93]/30 text-[#8e8e93] text-sm font-bold rounded-lg hover:text-white hover:bg-white/5 transition-colors">Cancel</button>
+                         <button onClick={(e) => handleEditClientSave(e, c.name, c.trainerEmail)} className="px-4 py-2 bg-[#007AFF] text-white text-sm font-bold rounded-lg hover:bg-[#007AFF]/90 transition-colors shadow-sm">Save Changes</button>
                        </div>
                     </div>
                  ) : (
@@ -458,7 +532,57 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
              )}
           </div>
         </div>
-      )}
+      ) : activeTab === 'exercises' ? (
+        <div className="space-y-6 pb-20">
+          <div className="flex justify-between items-center bg-[#1C1C1E] p-4 rounded-2xl border border-white/5">
+            <div>
+              <div className="text-white font-bold">{exercises.length} Exercises</div>
+              <div className="text-[#8e8e93] text-xs">Global dictionary</div>
+            </div>
+            <button onClick={() => setShowAddExercise(!showAddExercise)} className="bg-[#FF3B30]/20 text-[#FF3B30] p-2 rounded-xl">
+              {showAddExercise ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+            </button>
+          </div>
+
+          {showAddExercise && (
+             <form onSubmit={handleAddExercise} className="bg-[#1C1C1E] p-4 rounded-2xl border border-white/5 space-y-3">
+                <h4 className="text-xs font-bold text-[#8e8e93] uppercase tracking-wider mb-2">New Exercise</h4>
+                <input type="text" placeholder="Exercise Name (e.g. Bench Press)" value={newExerciseName} onChange={e => setNewExerciseName(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#FF3B30]" />
+                <input type="text" placeholder="Muscle Group (e.g. Chest)" value={newExerciseGroup} onChange={e => setNewExerciseGroup(e.target.value)} required className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-[#FF3B30]" />
+                <button type="submit" disabled={isAddingExercise} className="w-full bg-[#FF3B30] text-white font-bold py-3 rounded-xl flex justify-center items-center mt-2 disabled:opacity-50">
+                  {isAddingExercise ? <Loader2 className="w-5 h-5 animate-spin"/> : 'Add Exercise'}
+                </button>
+             </form>
+          )}
+
+          <div className="space-y-3">
+             {Object.entries(exercises.reduce((groups, ex) => {
+               if (!groups[ex.group]) groups[ex.group] = [];
+               groups[ex.group].push(ex);
+               return groups;
+             }, {} as Record<string, typeof exercises>)).map(([group, exs]) => (
+               <div key={group} className="bg-[#1C1C1E] rounded-2xl overflow-hidden border border-white/5">
+                 <div className="bg-[#0A0A0C] px-4 py-3 border-b border-white/5">
+                    <h3 className="text-[#8e8e93] text-xs font-bold uppercase tracking-wider">{group}</h3>
+                 </div>
+                 <div className="divide-y divide-white/5">
+                   {exs.map((ex, idx) => (
+                     <div key={idx} className="flex justify-between items-center p-4">
+                       <span className="text-white text-sm font-medium">{ex.name}</span>
+                       {ex.id && (
+                         <button onClick={(e) => handleDeleteExercise(e, ex.id)} className="p-2 text-[#8e8e93] hover:text-[#FF3B30] transition-colors"><Trash2 className="w-4 h-4" /></button>
+                       )}
+                     </div>
+                   ))}
+                 </div>
+               </div>
+             ))}
+             {exercises.length === 0 && !showAddExercise && (
+               <div className="text-center py-12 text-[#8e8e93] text-sm">No exercises added.</div>
+             )}
+          </div>
+        </div>
+      ) : null}
     </MobileNativeLayout>
   );
 }
