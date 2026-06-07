@@ -23,6 +23,28 @@
       } catch (e) {
         console.error('Failed to configure fetch:', e);
       }
+      
+      // Prevent pinch zoom in Safari
+      document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+      document.addEventListener('gesturechange', function (e) { e.preventDefault(); });
+      document.addEventListener('gestureend', function (e) { e.preventDefault(); });
+      
+      // Additional block for touch zooming
+      document.addEventListener('touchmove', function (e) {
+        if (e.touches.length > 1) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+      
+      // Prevent double-touch zoom
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', function (e) {
+        const now = (new Date()).getTime();
+        if (now - lastTouchEnd <= 300) {
+          e.preventDefault();
+        }
+        lastTouchEnd = now;
+      }, false);
     </script>
   </head>
   <body>
