@@ -13,9 +13,9 @@ export default defineConfig(() => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
         manifest: {
-          name: 'ProTrainer',
-          short_name: 'ProTrainer',
-          description: 'ProTrainer Workout & Client Management',
+          name: 'Waiter Walk',
+          short_name: 'Waiter Walk',
+          description: 'Waiter Walk Workout & Client Management',
           theme_color: '#0A0A0C',
           background_color: '#0A0A0C',
           display: 'standalone',

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { LogOut, Dumbbell, Calendar as CalendarIcon, Loader2, CheckCircle2, List as ListIcon, Activity, Plus, PieChart as ChartIcon, Lock, Trash2, Users, Star, Settings } from 'lucide-react';
-import { ExerciseLog, BodyMeasurement, TrainerReview, fetchExercises, fetchAllClients, doLogin, fetchClientLogs, fetchClientMeasurements, deleteLogRecord, appendLogRecord, appendMeasurement, deleteMeasurement, updateMeasurement, fetchTrainerReviews, updateTrainer } from '../lib/db';
+import { ExerciseLog, BodyMeasurement, TrainerReview, fetchExercises, fetchAllClients, doLogin, fetchClientLogs, fetchClientMeasurements, deleteLogRecord, appendLogRecord, appendMeasurement, deleteMeasurement, updateMeasurement, fetchTrainerReviews, updateTrainer, fetchAllLogs, fetchAllTrainers, TrackedTrainer, ClientProfile } from '../lib/db';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { ClientDashboard } from './ClientDashboard';
 import { MobileNativeLayout, MobileTabItem } from './MobileNativeLayout';
+import { LeaderboardView } from './LeaderboardView';
+import { Trophy } from 'lucide-react';
 
 export function TrainerApp({ onBack }: { onBack: () => void }) {
   const [step, setStep] = useState<'login' | 'dashboard'>(() => {
@@ -51,17 +53,28 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
   const [trainerReviews, setTrainerReviews] = useState<TrainerReview[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'clients' | 'dashboard' | 'logs' | 'measurements' | 'reviews' | 'settings'>('clients');
+  const [activeTab, setActiveTab] = useState<'clients' | 'dashboard' | 'logs' | 'measurements' | 'reviews' | 'leaderboard' | 'settings'>('clients');
+
+  const [globalClients, setGlobalClients] = useState<ClientProfile[]>([]);
+  const [globalTrainers, setGlobalTrainers] = useState<TrackedTrainer[]>([]);
+  const [globalLogs, setGlobalLogs] = useState<ExerciseLog[]>([]);
 
   // Password state
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [settingsTab, setSettingsTab] = useState<'password'>('password');
 
   const handlePasswordChange = async (e: React.FormEvent) => {
       e.preventDefault();
       const session = localStorage.getItem('protrainer_session');
-      if (!session || !newPassword) return;
+      if (!session || !currentPassword || !newPassword || !confirmPassword) return;
+      if (newPassword !== confirmPassword) {
+          setErrorMsg('New passwords do not match.');
+          return;
+      }
       const { user } = JSON.parse(session);
       if (!user || user.role !== 'trainer') {
          // Fallback
@@ -70,11 +83,19 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
       setErrorMsg('');
       setPasswordSuccess('');
       try {
+          // Verify current password first
+          const loginData = await doLogin(user.email, currentPassword, 'trainer');
+          if (!loginData.success) {
+            throw new Error('Current password is incorrect.');
+          }
+
           await updateTrainer(user.email, { password: newPassword });
           setPasswordSuccess('Password updated successfully.');
+          setCurrentPassword('');
           setNewPassword('');
+          setConfirmPassword('');
       } catch (err: any) {
-          setErrorMsg('Failed to update password.');
+          setErrorMsg(err.message || 'Failed to update password.');
       } finally {
           setIsChangingPassword(false);
       }
@@ -101,8 +122,15 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
       try { 
           const all = await fetchAllClients(); 
           setClients(all.filter(c => c.trainerEmail === tEmail)); 
+          setGlobalClients(all);
           const reviews = await fetchTrainerReviews(tEmail);
           setTrainerReviews(reviews);
+          
+          const trainers = await fetchAllTrainers();
+          setGlobalTrainers(trainers);
+
+          const logs = await fetchAllLogs();
+          setGlobalLogs(logs);
       } catch (e) { 
           setErrorMsg('Failed to fetch clients or reviews'); 
       } 
@@ -183,11 +211,10 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
   if (step === 'login') {
     return (
       <MobileNativeLayout onBack={onBack}>
-        <div className="flex flex-col items-center justify-center mt-4 mb-8">
-          <div className="w-16 h-16 rounded-[2rem] flex items-center justify-center mb-4 overflow-hidden bg-white/5">
-            <img src="https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png" alt="Company Logo" className="w-full h-full object-contain p-2" />
-          </div>
-          <p className="text-[#8e8e93] text-center max-w-[250px]">Trainer access to manage clients securely.</p>
+        <div className="flex flex-col items-center justify-center mt-12 mb-10">
+          <img src="https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png" alt="Company Logo" className="w-32 h-32 object-contain mb-8 origin-center" />
+          <h2 className="text-2xl font-bold tracking-tight mb-2">Trainer Portal</h2>
+          <p className="text-[#8e8e93] text-center text-sm max-w-[250px]">Manage your clients securely.</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -247,16 +274,21 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
       bottomNav={
         <>
           <MobileTabItem icon={<Users />} label="Clients" isActive={activeTab === 'clients'} onClick={() => setActiveTab('clients')} activeColor="text-[#007AFF]" />
-          {selectedClient && <MobileTabItem icon={<Activity />} label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} activeColor="text-[#007AFF]" />}
+          {selectedClient && <MobileTabItem icon={<Activity />} label="Home" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} activeColor="text-[#007AFF]" />}
           {selectedClient && <MobileTabItem icon={<ListIcon />} label="Logs" isActive={activeTab === 'logs'} onClick={() => setActiveTab('logs')} activeColor="text-[#007AFF]" />}
           {selectedClient && <MobileTabItem icon={<Plus />} label="Metrics" isActive={activeTab === 'measurements'} onClick={() => setActiveTab('measurements')} activeColor="text-[#007AFF]" />}
           <MobileTabItem icon={<Star />} label="Reviews" isActive={activeTab === 'reviews'} onClick={() => setActiveTab('reviews')} activeColor="text-[#007AFF]" />
+          <MobileTabItem icon={<Trophy />} label="Ranking" isActive={activeTab === 'leaderboard'} onClick={() => setActiveTab('leaderboard')} activeColor="text-[#007AFF]" />
           <MobileTabItem icon={<Settings />} label="Settings" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} activeColor="text-[#007AFF]" />
         </>
       }
-    >
-      {activeTab === 'clients' && (
-        <div className="space-y-4">
+  >
+    {activeTab === 'leaderboard' && (
+      <LeaderboardView logs={globalLogs} clients={globalClients} trainers={globalTrainers} currentRole="trainer" loggedInUserEmail={email} />
+    )}
+    
+    {activeTab === 'clients' && (
+      <div className="space-y-4">
           <h3 className="text-white font-bold text-lg mb-4">Assigned Clients</h3>
           {clients.length === 0 ? (
             <div className="text-center text-[#8e8e93] mt-12 bg-[#1C1C1E] rounded-3xl p-8 border border-white/5">No clients assigned.</div>
@@ -392,40 +424,73 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
 
       {activeTab === 'settings' && (
         <div className="bg-[#1C1C1E] rounded-3xl p-6 border border-white/5 pb-24 mt-6">
-          <h3 className="text-lg font-bold text-white mb-2">Account Settings</h3>
-          <p className="text-[#8e8e93] text-sm mb-6">Manage your security preferences.</p>
+          <div className="flex gap-2 mb-6">
+            <button onClick={() => setSettingsTab('password')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-colors ${settingsTab === 'password' ? 'bg-[#007AFF] text-white' : 'bg-white/5 text-[#8e8e93] hover:text-white'}`}>Password</button>
+          </div>
 
-          <form onSubmit={handlePasswordChange} className="space-y-4">
-             {errorMsg && (
-               <div className="p-3 bg-red-500/20 text-[#FF3B30] rounded-xl text-sm font-medium">
-                 {errorMsg}
-               </div>
-             )}
-             {passwordSuccess && (
-               <div className="p-3 bg-green-500/20 text-[#34C759] rounded-xl text-sm font-medium">
-                 {passwordSuccess}
-               </div>
-             )}
-             <div>
-                <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">New Password</label>
-                <input 
-                  type="password" 
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  required
-                  placeholder="Enter new password"
-                  className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-2xl px-4 py-4 outline-none focus:border-[#007AFF] transition-all"
-                />
-             </div>
+          {settingsTab === 'password' && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <h3 className="text-lg font-bold text-white mb-2">Change Password</h3>
+              <p className="text-[#8e8e93] text-sm mb-6">Update your account secured password.</p>
 
-             <button 
-               type="submit" 
-               disabled={isChangingPassword}
-               className="w-full mt-4 bg-[#007AFF] text-white font-bold py-4 rounded-xl transition-transform active:scale-95 disabled:opacity-50 flex items-center justify-center"
-             >
-               {isChangingPassword ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Update Password'}
-             </button>
-          </form>
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                 {errorMsg && (
+                   <div className="p-3 bg-red-500/20 text-[#FF3B30] rounded-xl text-sm font-medium">
+                     {errorMsg}
+                   </div>
+                 )}
+                 {passwordSuccess && (
+                   <div className="p-3 bg-green-500/20 text-[#34C759] rounded-xl text-sm font-medium">
+                     {passwordSuccess}
+                   </div>
+                 )}
+                 
+                 <div>
+                    <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">Current Password</label>
+                    <input 
+                      type="password" 
+                      value={currentPassword}
+                      onChange={e => setCurrentPassword(e.target.value)}
+                      required
+                      placeholder="Enter current password"
+                      className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-2xl px-4 py-4 outline-none focus:border-[#007AFF] transition-all"
+                    />
+                 </div>
+
+                 <div>
+                    <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">New Password</label>
+                    <input 
+                      type="password" 
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      required
+                      placeholder="Enter new password"
+                      className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-2xl px-4 py-4 outline-none focus:border-[#007AFF] transition-all"
+                    />
+                 </div>
+                 
+                 <div>
+                    <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">Confirm New Password</label>
+                    <input 
+                      type="password" 
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      required
+                      placeholder="Confirm new password"
+                      className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-2xl px-4 py-4 outline-none focus:border-[#007AFF] transition-all"
+                    />
+                 </div>
+
+                 <button 
+                   type="submit" 
+                   disabled={isChangingPassword}
+                   className="w-full mt-6 bg-[#007AFF] text-white font-bold py-4 rounded-xl transition-transform active:scale-95 disabled:opacity-50 flex items-center justify-center shadow-[0_4px_14px_rgba(0,122,255,0.3)]"
+                 >
+                   {isChangingPassword ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Password'}
+                 </button>
+              </form>
+            </div>
+          )}
         </div>
       )}
     </MobileNativeLayout>

@@ -91,7 +91,7 @@ export function InstallPWA() {
             <img src="https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <div>
-            <h3 className="font-bold text-[15px]">Install ProTrainer</h3>
+            <h3 className="font-bold text-[15px]">Install Waiter Walk</h3>
             <p className="text-xs text-[#8e8e93] mt-0.5">Add to your home screen for quick access and full-screen experience.</p>
           </div>
         </div>

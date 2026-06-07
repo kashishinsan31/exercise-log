@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, LogOut, Plus, Users, Dumbbell, Activity, LineChart as LineChartIcon, Loader2, Database, Link as LinkIcon, UserPlus, Trash2, Edit2, X, Check, Search, Menu, Star, Bell } from 'lucide-react';
-import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, fetchExercises, addExerciseRecord, deleteExerciseRecord, ClientProfile, ExerciseLog, BodyMeasurement, initializeDatabase, addTrainer, addClient, deleteTrainerRecord, deleteClientRecord, updateTrainer, updateClient, TrainerReview, fetchAllTrainerReviews, sendNotification } from '../lib/db';
+import { Trophy } from 'lucide-react';
+import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, fetchExercises, addExerciseRecord, deleteExerciseRecord, ClientProfile, ExerciseLog, BodyMeasurement, initializeDatabase, addTrainer, addClient, deleteTrainerRecord, deleteClientRecord, updateTrainer, updateClient, TrainerReview, fetchAllTrainerReviews, sendNotification, fetchAllLogs } from '../lib/db';
 import { ClientDashboard } from './ClientDashboard';
 import { MobileNativeLayout, MobileTabItem } from './MobileNativeLayout';
+import { LeaderboardView } from './LeaderboardView';
 
 interface TrackedTrainer {
   id: string;
@@ -21,12 +23,13 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'trainers' | 'clients' | 'exercises' | 'overview' | 'reviews' | 'notifications'>('trainers');
+  const [activeTab, setActiveTab] = useState<'trainers' | 'clients' | 'exercises' | 'overview' | 'reviews' | 'notifications' | 'leaderboard'>('trainers');
 
   // Dash State
   const [dbSpreadsheetId, setDbSpreadsheetId] = useState<string>('');
   const [trainers, setTrainers] = useState<TrackedTrainer[]>([]);
   const [clients, setClients] = useState<ClientProfile[]>([]);
+  const [allLogs, setAllLogs] = useState<ExerciseLog[]>([]);
   const [exercises, setExercises] = useState<ExerciseItem[]>([]);
   const [allReviews, setAllReviews] = useState<TrainerReview[]>([]);
   
@@ -134,10 +137,12 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
           const cData = await fetchAllClients();
           const eData = await fetchExercises();
           const rData = await fetchAllTrainerReviews();
+          const lData = await fetchAllLogs();
           setTrainers(tData || []);
           setClients(cData || []);
           setExercises(eData || []);
           setAllReviews(rData || []);
+          setAllLogs(lData || []);
           setAddDBError('');
       } catch (err: any) {
          console.error('Failed to load system data:', err);
@@ -288,11 +293,10 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   if (!isAuthenticated) {
     return (
       <MobileNativeLayout onBack={onBack}>
-        <div className="flex flex-col items-center justify-center mt-4 mb-8">
-          <div className="w-16 h-16 rounded-[2rem] flex items-center justify-center mb-4 overflow-hidden bg-white/5">
-            <img src="https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png" alt="Company Logo" className="w-full h-full object-contain p-2" />
-          </div>
-          <p className="text-[#8e8e93] text-center max-w-[250px]">System administration access.</p>
+        <div className="flex flex-col items-center justify-center mt-12 mb-10">
+          <img src="https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png" alt="Company Logo" className="w-32 h-32 object-contain mb-8 origin-center" />
+          <h2 className="text-2xl font-bold tracking-tight mb-2">Admin Portal</h2>
+          <p className="text-[#8e8e93] text-center text-sm max-w-[250px]">System administration access.</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -386,7 +390,8 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
           <MobileTabItem icon={<Dumbbell />} label="Trainers" isActive={activeTab === 'trainers'} onClick={() => setActiveTab('trainers')} activeColor="text-[#FF3B30]" />
           <MobileTabItem icon={<Users />} label="Clients" isActive={activeTab === 'clients'} onClick={() => setActiveTab('clients')} activeColor="text-[#FF3B30]" />
           <MobileTabItem icon={<Activity />} label="Exercises" isActive={activeTab === 'exercises'} onClick={() => setActiveTab('exercises')} activeColor="text-[#FF3B30]" />
-          <MobileTabItem icon={<Star />} label="Reviews" isActive={activeTab === 'reviews'} onClick={() => setActiveTab('reviews')} activeColor="text-[#FF3B30]" />
+          <MobileTabItem icon={<Star />} label="Reviews" isActive={activeTab === 'reviews'} onClick={() => setActiveTab('reviews')} activeColor="text-yellow-500" />
+          <MobileTabItem icon={<Trophy />} label="Ranking" isActive={activeTab === 'leaderboard'} onClick={() => setActiveTab('leaderboard')} activeColor="text-[#FF3B30]" />
           <MobileTabItem icon={<Bell />} label="Alerts" isActive={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} activeColor="text-[#FF3B30]" />
         </>
       }
@@ -638,7 +643,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                     <h3 className="text-[#8e8e93] text-xs font-bold uppercase tracking-wider">{group}</h3>
                  </div>
                  <div className="divide-y divide-white/5">
-                   {exs.map((ex, idx) => (
+                   {(exs as typeof exercises).map((ex, idx) => (
                      <div key={idx} className="flex justify-between items-center p-4">
                        <span className="text-white text-sm font-medium">{ex.name}</span>
                        {ex.id && (
@@ -692,6 +697,8 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
              )}
           </div>
         </div>
+      ) : activeTab === 'leaderboard' ? (
+        <LeaderboardView logs={allLogs} clients={clients} trainers={trainers} currentRole="admin" />
       ) : activeTab === 'notifications' ? (
         <div className="space-y-6 pb-20">
           <div className="flex flex-col mb-4">

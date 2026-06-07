@@ -169,6 +169,16 @@ export async function deleteTrainerRecord(email: string) {
   await deleteDoc(doc(db, "trainers", email.toLowerCase()));
 }
 
+export async function fetchAllLogs() {
+  const q = query(collection(db, "exerciseLogs"));
+  const snapshot = await getDocs(q);
+  const data: ExerciseLog[] = [];
+  snapshot.forEach(doc => {
+    data.push({ id: doc.id, ...doc.data() } as ExerciseLog);
+  });
+  return data;
+}
+
 export async function fetchAllClients() {
   const snap = await getDocs(collection(db, "clients"));
   return snap.docs.map(d => d.data() as ClientProfile);

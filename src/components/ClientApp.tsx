@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { doLogin, fetchClientLogs, fetchClientMeasurements, appendMeasurement, deleteMeasurement, ExerciseLog, BodyMeasurement, ClientProfile, addTrainerReview, updateClient } from '../lib/db';
-import { Loader2, Dumbbell, Lock, FileText, Activity, User, PlusCircle, Trash2, Star, Settings } from 'lucide-react';
+import { doLogin, fetchClientLogs, fetchClientMeasurements, appendMeasurement, deleteMeasurement, ExerciseLog, BodyMeasurement, ClientProfile, addTrainerReview, updateClient, fetchAllLogs, fetchAllClients, fetchAllTrainers, TrackedTrainer, fetchTrainerReviews, TrainerReview } from '../lib/db';
+import { Loader2, Dumbbell, Lock, FileText, Activity, User, PlusCircle, Trash2, Star, Settings, Trophy } from 'lucide-react';
 import { ClientDashboard } from './ClientDashboard';
 import { MobileNativeLayout, MobileTabItem } from './MobileNativeLayout';
+import { LeaderboardView } from './LeaderboardView';
 
 export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwitchRole?: (role: any) => void }) {
   const getGreetingTime = () => {
@@ -41,7 +42,12 @@ export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwit
   const [clientMeasurements, setClientMeasurements] = useState<BodyMeasurement[]>([]);
   
   // App views
-  const [currentView, setCurrentView] = useState<'dashboard' | 'logs' | 'measurements' | 'reviews' | 'settings'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'logs' | 'measurements' | 'trainer' | 'leaderboard' | 'settings'>('dashboard');
+
+  const [globalClients, setGlobalClients] = useState<ClientProfile[]>([]);
+  const [globalTrainers, setGlobalTrainers] = useState<TrackedTrainer[]>([]);
+  const [globalLogs, setGlobalLogs] = useState<ExerciseLog[]>([]);
+  const [trainerReviews, setTrainerReviews] = useState<TrainerReview[]>([]);
 
   // Review state
   const [reviewRating, setReviewRating] = useState(5);
@@ -54,22 +60,32 @@ export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwit
   const [reviewSuccess, setReviewSuccess] = useState('');
 
   // Password state
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [settingsTab, setSettingsTab] = useState<'password' | 'review'>('password');
 
   const handlePasswordChange = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!selectedClient || !newPassword) return;
+      if (!selectedClient || !currentPassword || !newPassword || !confirmPassword) return;
+      if (newPassword !== confirmPassword) {
+          setErrorMsg('New passwords do not match.');
+          return;
+      }
       setIsChangingPassword(true);
       setErrorMsg('');
       setPasswordSuccess('');
       try {
+          await doLogin(selectedClient.name, currentPassword, 'client');
           await updateClient(selectedClient.name, selectedClient.trainerEmail, { password: newPassword });
           setPasswordSuccess('Password updated successfully.');
+          setCurrentPassword('');
           setNewPassword('');
+          setConfirmPassword('');
       } catch (err: any) {
-          setErrorMsg('Failed to update password.');
+          setErrorMsg('Current password is incorrect or failed to update.');
       } finally {
           setIsChangingPassword(false);
       }
@@ -109,20 +125,33 @@ export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwit
         const { role, user } = JSON.parse(saved);
         if (role === 'client' && user) {
           setSelectedClient(user);
-          fetchClientData(user.name);
+          fetchClientData(user);
           setStep('dashboard');
         }
       } catch (e) {}
     }
   }, []);
 
-  const fetchClientData = async (name: string) => {
+  const fetchClientData = async (user: {name: string, trainerEmail?: string}) => {
     try {
-      const logs = await fetchClientLogs(name); 
-      const measurements = await fetchClientMeasurements(name); 
+      const logs = await fetchClientLogs(user.name); 
+      const measurements = await fetchClientMeasurements(user.name); 
       const dataPayload = { logs, measurements };
       setClientLogs(dataPayload.logs || []);
       setClientMeasurements(dataPayload.measurements || []);
+
+      const allC = await fetchAllClients();
+      setGlobalClients(allC);
+      const allT = await fetchAllTrainers();
+      setGlobalTrainers(allT);
+      const allL = await fetchAllLogs();
+      setGlobalLogs(allL);
+
+      if (user.trainerEmail) {
+         const revs = await fetchTrainerReviews(user.trainerEmail);
+         setTrainerReviews(revs || []);
+      }
+
       setStep('dashboard');
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to fetch client data.');
@@ -152,7 +181,7 @@ export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwit
       const data = await doLogin(email.trim(), password, 'client');
       setSelectedClient(data.user);
       localStorage.setItem('protrainer_session', JSON.stringify({ role: 'client', user: data.user }));
-      await fetchClientData(data.user.name);
+      await fetchClientData(data.user);
     } catch (err: any) {
       setErrorMsg(err.message || 'Login failed. Invalid credentials.');
       setIsLoading(false);
@@ -200,16 +229,26 @@ export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwit
         onLogout={() => { localStorage.removeItem('protrainer_session'); setStep('login'); setEmail(''); setPassword(''); onBack(); }}
         bottomNav={
           <>
-            <MobileTabItem icon={<Activity />} label="Dashboard" isActive={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')} />
+            <MobileTabItem icon={<Activity />} label="Home" isActive={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')} />
             <MobileTabItem icon={<FileText />} label="Logs" isActive={currentView === 'logs'} onClick={() => setCurrentView('logs')} />
-            <MobileTabItem icon={<PlusCircle />} label="Measurements" isActive={currentView === 'measurements'} onClick={() => setCurrentView('measurements')} />
-            <MobileTabItem icon={<Star />} label="Review" isActive={currentView === 'reviews'} onClick={() => setCurrentView('reviews')} />
+            <MobileTabItem icon={<PlusCircle />} label="Stats" isActive={currentView === 'measurements'} onClick={() => setCurrentView('measurements')} />
+            <MobileTabItem icon={<Trophy />} label="Ranking" isActive={currentView === 'leaderboard'} onClick={() => setCurrentView('leaderboard')} />
             <MobileTabItem icon={<Settings />} label="Settings" isActive={currentView === 'settings'} onClick={() => setCurrentView('settings')} />
           </>
         }
       >
         {currentView === 'dashboard' && (
-          <ClientDashboard clientName={selectedClient.name} logs={clientLogs} measurements={clientMeasurements} />
+          <ClientDashboard 
+            clientName={selectedClient.name} 
+            logs={clientLogs} 
+            measurements={clientMeasurements}
+            trainer={globalTrainers.find(t => t.email === selectedClient.trainerEmail)}
+            trainerReviews={trainerReviews}
+          />
+        )}
+
+        {currentView === 'leaderboard' && (
+          <LeaderboardView logs={globalLogs} clients={globalClients} trainers={globalTrainers} currentRole="client" />
         )}
 
         {currentView === 'logs' && (
@@ -301,100 +340,134 @@ export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwit
           </>
         )}
 
-        {currentView === 'reviews' && (
-          <div className="bg-[#1C1C1E] rounded-3xl p-6 border border-white/5 pb-24">
-            <h3 className="text-lg font-bold text-white mb-2">Trainer Details & Review</h3>
-            <p className="text-[#8e8e93] text-sm mb-6">Rate your experience with your trainer.</p>
-
-            <form onSubmit={handleReviewSubmit} className="space-y-6">
-               {errorMsg && (
-                 <div className="p-3 bg-red-500/20 text-[#FF3B30] rounded-xl text-sm font-medium">
-                   {errorMsg}
-                 </div>
-               )}
-               {reviewSuccess && (
-                 <div className="p-3 bg-green-500/20 text-[#34C759] rounded-xl text-sm font-medium">
-                   {reviewSuccess}
-                 </div>
-               )}
-
-               {[
-                 { label: 'Overall Rating', val: reviewRating, set: setReviewRating },
-                 { label: 'Punctuality', val: reviewPunctuality, set: setReviewPunctuality },
-                 { label: 'Professionalism', val: reviewProfessionalism, set: setReviewProfessionalism },
-                 { label: 'Knowledge & Expertise', val: reviewKnowledge, set: setReviewKnowledge },
-                 { label: 'Communication', val: reviewCommunication, set: setReviewCommunication },
-               ].map((metric) => (
-                 <div key={metric.label}>
-                   <div className="flex justify-between items-end mb-2">
-                      <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider">{metric.label}</label>
-                      <span className="text-[#34C759] font-bold text-sm">{metric.val}/5</span>
-                   </div>
-                   <input type="range" min="1" max="5" value={metric.val} onChange={(e) => metric.set(parseInt(e.target.value))} className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#34C759]" />
-                   <div className="flex justify-between text-[10px] text-[#8e8e93] mt-1 px-1 mt-1">
-                      <span>Poor</span><span>Excellent</span>
-                   </div>
-                 </div>
-               ))}
-
-               <div>
-                 <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">Detail written feedback</label>
-                 <textarea 
-                   value={reviewText}
-                   onChange={e => setReviewText(e.target.value)}
-                   required
-                   className="w-full bg-[#0A0A0C] border border-white/10 text-white text-sm rounded-2xl px-4 py-3 outline-none focus:border-[#34C759] min-h-[120px] resize-none"
-                   placeholder="How was your session? What did you like? What can be improved?"
-                 />
-               </div>
-
-               <button 
-                 type="submit" 
-                 disabled={isSubmittingReview}
-                 className="w-full mt-2 bg-white text-black font-bold py-4 rounded-xl transition-transform active:scale-95 disabled:opacity-50 flex items-center justify-center shadow-lg"
-               >
-                 {isSubmittingReview ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Submit Review'}
-               </button>
-            </form>
-          </div>
-        )}
-
         {currentView === 'settings' && (
-          <div className="bg-[#1C1C1E] rounded-3xl p-6 border border-white/5 pb-24">
-            <h3 className="text-lg font-bold text-white mb-2">Account Settings</h3>
-            <p className="text-[#8e8e93] text-sm mb-6">Manage your security preferences.</p>
+          <div className="bg-[#1C1C1E] rounded-3xl p-6 border border-white/5 pb-24 space-y-6">
+            <div className="flex gap-2">
+              <button onClick={() => setSettingsTab('password')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-colors ${settingsTab === 'password' ? 'bg-[#34C759] text-black' : 'bg-white/5 text-[#8e8e93] hover:text-white'}`}>Password</button>
+              <button onClick={() => setSettingsTab('review')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-colors ${settingsTab === 'review' ? 'bg-[#34C759] text-black' : 'bg-white/5 text-[#8e8e93] hover:text-white'}`}>Review</button>
+            </div>
 
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-               {errorMsg && (
-                 <div className="p-3 bg-red-500/20 text-[#FF3B30] rounded-xl text-sm font-medium">
-                   {errorMsg}
-                 </div>
-               )}
-               {passwordSuccess && (
-                 <div className="p-3 bg-green-500/20 text-[#34C759] rounded-xl text-sm font-medium">
-                   {passwordSuccess}
-                 </div>
-               )}
-               <div>
-                  <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">New Password</label>
-                  <input 
-                    type="password" 
-                    value={newPassword}
-                    onChange={e => setNewPassword(e.target.value)}
-                    required
-                    placeholder="Enter new password"
-                    className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-2xl px-4 py-4 outline-none focus:border-[#34C759] transition-all"
-                  />
-               </div>
+            {settingsTab === 'password' && (
+              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <h3 className="text-lg font-bold text-white mb-2">Change Password</h3>
+                <p className="text-[#8e8e93] text-sm mb-6">Update your account secured password.</p>
 
-               <button 
-                 type="submit" 
-                 disabled={isChangingPassword}
-                 className="w-full mt-4 bg-gradient-to-tr from-[#34C759] to-[#30b551] text-black font-bold py-4 rounded-xl transition-transform active:scale-95 disabled:opacity-50 flex items-center justify-center"
-               >
-                 {isChangingPassword ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Update Password'}
-               </button>
-            </form>
+                <form onSubmit={handlePasswordChange} className="space-y-4">
+                   {errorMsg && (
+                     <div className="p-3 bg-red-500/20 text-[#FF3B30] rounded-xl text-sm font-medium">
+                       {errorMsg}
+                     </div>
+                   )}
+                   {passwordSuccess && (
+                     <div className="p-3 bg-green-500/20 text-[#34C759] rounded-xl text-sm font-medium">
+                       {passwordSuccess}
+                     </div>
+                   )}
+                   
+                   <div>
+                      <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">Current Password</label>
+                      <input 
+                        type="password" 
+                        value={currentPassword}
+                        onChange={e => setCurrentPassword(e.target.value)}
+                        required
+                        placeholder="Enter current password"
+                        className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-2xl px-4 py-4 outline-none focus:border-[#34C759] transition-all"
+                      />
+                   </div>
+
+                   <div>
+                      <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">New Password</label>
+                      <input 
+                        type="password" 
+                        value={newPassword}
+                        onChange={e => setNewPassword(e.target.value)}
+                        required
+                        placeholder="Enter new password"
+                        className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-2xl px-4 py-4 outline-none focus:border-[#34C759] transition-all"
+                      />
+                   </div>
+                   
+                   <div>
+                      <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">Confirm New Password</label>
+                      <input 
+                        type="password" 
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                        required
+                        placeholder="Confirm new password"
+                        className="w-full bg-[#0A0A0C] border border-transparent text-white text-sm rounded-2xl px-4 py-4 outline-none focus:border-[#34C759] transition-all"
+                      />
+                   </div>
+
+                   <button 
+                     type="submit" 
+                     disabled={isChangingPassword}
+                     className="w-full mt-6 bg-gradient-to-tr from-[#34C759] to-[#30b551] text-black font-bold py-4 rounded-xl transition-transform active:scale-95 disabled:opacity-50 flex items-center justify-center shadow-lg"
+                   >
+                     {isChangingPassword ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Password'}
+                   </button>
+                </form>
+              </div>
+            )}
+            
+            {settingsTab === 'review' && (
+              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <h3 className="text-lg font-bold text-white mb-2">Leave a Review</h3>
+                <p className="text-[#8e8e93] text-sm mb-6">Rate your experience with your trainer.</p>
+
+                <form onSubmit={handleReviewSubmit} className="space-y-6">
+                   {errorMsg && (
+                     <div className="p-3 bg-red-500/20 text-[#FF3B30] rounded-xl text-sm font-medium">
+                       {errorMsg}
+                     </div>
+                   )}
+                   {reviewSuccess && (
+                     <div className="p-3 bg-green-500/20 text-[#34C759] rounded-xl text-sm font-medium">
+                       {reviewSuccess}
+                     </div>
+                   )}
+
+                   {[
+                     { label: 'Overall Rating', val: reviewRating, set: setReviewRating },
+                     { label: 'Punctuality', val: reviewPunctuality, set: setReviewPunctuality },
+                     { label: 'Professionalism', val: reviewProfessionalism, set: setReviewProfessionalism },
+                     { label: 'Knowledge & Expertise', val: reviewKnowledge, set: setReviewKnowledge },
+                     { label: 'Communication', val: reviewCommunication, set: setReviewCommunication },
+                   ].map((metric) => (
+                     <div key={metric.label}>
+                       <div className="flex justify-between items-end mb-2">
+                          <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider">{metric.label}</label>
+                          <span className="text-[#34C759] font-bold text-sm">{metric.val}/5</span>
+                       </div>
+                       <input type="range" min="1" max="5" value={metric.val} onChange={(e) => metric.set(parseInt(e.target.value))} className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#34C759]" />
+                       <div className="flex justify-between text-[10px] text-[#8e8e93] mt-1 px-1 mt-1">
+                          <span>Poor</span><span>Excellent</span>
+                       </div>
+                     </div>
+                   ))}
+
+                   <div>
+                     <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">Detail written feedback</label>
+                     <textarea 
+                       value={reviewText}
+                       onChange={e => setReviewText(e.target.value)}
+                       required
+                       className="w-full bg-[#0A0A0C] border border-white/10 text-white text-sm rounded-2xl px-4 py-3 outline-none focus:border-[#34C759] min-h-[120px] resize-none"
+                       placeholder="How was your session? What did you like? What can be improved?"
+                     />
+                   </div>
+
+                   <button 
+                     type="submit" 
+                     disabled={isSubmittingReview}
+                     className="w-full mt-2 bg-white text-black font-bold py-4 rounded-xl transition-transform active:scale-95 disabled:opacity-50 flex items-center justify-center shadow-lg"
+                   >
+                     {isSubmittingReview ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Submit Review'}
+                   </button>
+                </form>
+              </div>
+            )}
           </div>
         )}
       </MobileNativeLayout>
@@ -404,11 +477,10 @@ export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwit
   // Login
   return (
     <MobileNativeLayout>
-      <div className="flex flex-col items-center justify-center mt-4 mb-8">
-        <div className="w-16 h-16 rounded-[2rem] flex items-center justify-center mb-4 overflow-hidden bg-white/5">
-          <img src="https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png" alt="Company Logo" className="w-full h-full object-contain p-2" />
-        </div>
-        <p className="text-[#8e8e93] text-center max-w-[250px]">Sign in to access your workout metrics.</p>
+      <div className="flex flex-col items-center justify-center mt-12 mb-10">
+        <img src="https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png" alt="Company Logo" className="w-32 h-32 object-contain mb-8 origin-center" />
+        <h2 className="text-2xl font-bold tracking-tight mb-2">Welcome Back</h2>
+        <p className="text-[#8e8e93] text-center text-sm max-w-[250px]">Sign in to access your workout metrics.</p>
       </div>
 
       <form onSubmit={handleLogin} className="space-y-4">

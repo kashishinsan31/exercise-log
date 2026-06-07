@@ -62,7 +62,7 @@ export function MobileNativeLayout({ children, onBack, onLogout, title, subtitle
 
         {/* Native Bottom Tab Bar (Glassmorphism) */}
         {bottomNav && (
-          <div className="absolute bottom-0 inset-x-0 h-[72px] bg-[#0A0A0C]/90 backdrop-blur-xl border-t border-white/5 flex justify-around items-center px-4 z-50 pb-2">
+          <div className="absolute bottom-0 inset-x-0 h-[72px] bg-[#0A0A0C]/90 backdrop-blur-xl border-t border-white/5 flex items-center px-2 z-50 pb-2 justify-between custom-scrollbar overflow-x-auto sm:justify-around">
             {bottomNav}
           </div>
         )}
@@ -76,7 +76,7 @@ export function MobileTabItem({ icon, label, isActive, onClick, activeColor = 't
   return (
     <button 
       onClick={onClick}
-      className={`flex flex-col items-center gap-1 transition-colors duration-300 w-16 ${isActive ? activeColor : 'text-[#8e8e93] hover:text-[#d1d1d6]'}`}
+      className={`flex flex-col items-center justify-center gap-1 transition-colors duration-300 min-w-[60px] flex-shrink-0 ${isActive ? activeColor : 'text-[#8e8e93] hover:text-[#d1d1d6]'}`}
     >
       <div className="relative">
         <div className={`[&>svg]:w-6 [&>svg]:h-6 [&>svg]:stroke-[1.75px] ${isActive ? '[&>svg]:fill-current [&>svg]:stroke-2' : ''}`}>
