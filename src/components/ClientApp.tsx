@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { doLogin, fetchClientLogs, fetchClientMeasurements, appendMeasurement, ExerciseLog, BodyMeasurement, ClientProfile } from '../lib/db';
-import { Loader2, Dumbbell, ArrowLeft, Lock, FileText, Activity, User, PlusCircle } from 'lucide-react';
+import { Loader2, Dumbbell, Lock, FileText, Activity, User, PlusCircle } from 'lucide-react';
 import { ClientDashboard } from './ClientDashboard';
+import { MobileNativeLayout, MobileTabItem } from './MobileNativeLayout';
 
 export function ClientApp({ onBack }: { onBack: () => void }) {
   const [step, setStep] = useState<'login' | 'dashboard'>(() => {
@@ -116,200 +117,143 @@ export function ClientApp({ onBack }: { onBack: () => void }) {
 
   if (step === 'dashboard' && selectedClient) {
     return (
-      <div className="flex h-[100dvh] w-full bg-slate-50 font-sans text-slate-900 overflow-hidden flex-col">
-        <header className="h-16 bg-white border-b border-slate-200 px-4 md:px-8 flex items-center justify-between shrink-0 shadow-sm relative z-10">
-          <div className="flex items-center space-x-3">
-             <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shadow-sm">
-               <Dumbbell className="w-4 h-4 text-white" />
-             </div>
-             <h2 className="text-lg font-bold text-slate-800">
-               {selectedClient.name}
-             </h2>
-          </div>
-          <button 
-            onClick={() => { localStorage.removeItem('protrainer_session'); setStep('login'); setEmail(''); setPassword(''); onBack(); }}
-            className="text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
-          >
-            Log Out
-          </button>
-        </header>
-
-        <div className="bg-white border-b border-slate-200 px-4 md:px-8 flex space-x-6 overflow-x-auto shrink-0 shadow-sm relative z-0">
-          <button 
-            onClick={() => setCurrentView('dashboard')}
-            className={`py-3.5 px-1 border-b-2 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 ${currentView === 'dashboard' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-          >
-            <Activity className="w-4 h-4" />
-            Dashboard
-          </button>
-          <button 
-            onClick={() => setCurrentView('logs')}
-            className={`py-3.5 px-1 border-b-2 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 ${currentView === 'logs' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-          >
-            <FileText className="w-4 h-4" />
-            Log Book
-          </button>
-          <button 
-            onClick={() => setCurrentView('measurements')}
-            className={`py-3.5 px-1 border-b-2 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 ${currentView === 'measurements' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-          >
-            <PlusCircle className="w-4 h-4" />
-            Add Measurements
-          </button>
-        </div>
-        
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-           {currentView === 'dashboard' && (
-             <ClientDashboard clientName={selectedClient.name} logs={clientLogs} measurements={clientMeasurements} />
-           )}
-
-           {currentView === 'logs' && (
-             <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-               <div className="p-6 border-b border-slate-200 bg-slate-50">
-                 <h3 className="text-sm font-bold text-slate-800 tracking-wider">EXERCISE HISTORY</h3>
-                 <p className="text-xs text-slate-500 mt-1">Review your completed sets and reps.</p>
-               </div>
-               <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
-                 <table className="w-full text-left border-collapse min-w-[600px]">
-                   <thead>
-                     <tr className="bg-slate-50 text-xs text-slate-400 uppercase tracking-wider font-bold border-b border-slate-200 sticky top-0">
-                       <th className="p-4 rounded-tl-lg">Date</th>
-                       <th className="p-4">Muscle Group</th>
-                       <th className="p-4">Exercise</th>
-                       <th className="p-4">Weight</th>
-                       <th className="p-4">Sets</th>
-                       <th className="p-4">Reps</th>
-                     </tr>
-                   </thead>
-                   <tbody className="text-sm">
-                     {clientLogs.length > 0 ? (
-                       clientLogs.map((log, i) => (
-                         <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                           <td className="p-4 text-slate-600 whitespace-nowrap">{new Date(log.date).toLocaleDateString()}</td>
-                           <td className="p-4 text-slate-600">{log.muscleGroup}</td>
-                           <td className="p-4 font-medium text-slate-800">{log.exercise}</td>
-                           <td className="p-4 text-slate-600">{log.weight}</td>
-                           <td className="p-4 text-slate-600">{log.sets}</td>
-                           <td className="p-4 text-slate-600">{log.reps}</td>
-                         </tr>
-                       ))
-                     ) : (
-                       <tr>
-                         <td colSpan={6} className="p-8 text-center text-slate-400">No logs found.</td>
-                       </tr>
-                     )}
-                   </tbody>
-                 </table>
-               </div>
-             </div>
-           )}
-
-           {currentView === 'measurements' && (
-             <div className="max-w-lg mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
-               <h3 className="text-sm font-bold text-slate-800 tracking-wider mb-2">UPDATE BODY MEASUREMENTS</h3>
-               <p className="text-xs text-slate-500 mb-8 leading-relaxed">Enter your latest stats to track your progress over time.</p>
-               
-               <form onSubmit={handleAddMeasurement} className="space-y-4">
-                 {errorMsg && (
-                   <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium border border-red-100">
-                     {errorMsg}
-                   </div>
-                 )}
-                 <div>
-                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Body Weight (lbs/kg)</label>
-                   <input type="number" step="0.1" name="weight" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow" required />
-                 </div>
-                 <div>
-                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Chest (in/cm)</label>
-                   <input type="number" step="0.1" name="chest" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow" />
-                 </div>
-                 <div>
-                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Hips (in/cm)</label>
-                   <input type="number" step="0.1" name="hips" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow" />
-                 </div>
-                 <div>
-                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Arms (in/cm)</label>
-                   <input type="number" step="0.1" name="arms" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow" />
-                 </div>
-
-                 <button 
-                   type="submit"
-                   disabled={isLoading}
-                   className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 flex justify-center items-center rounded-lg transition-colors disabled:opacity-50 shadow-sm"
-                 >
-                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Measurements'}
-                 </button>
-               </form>
-             </div>
-           )}
-
-        </main>
-      </div>
-    );
-  }
-
-  // Auth / Connection Steps
-  return (
-    <div className="flex h-screen w-full bg-slate-50 font-sans text-slate-900 overflow-hidden items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
-        
-        <button onClick={onBack} className="text-slate-400 hover:text-slate-700 mb-6 flex items-center text-sm font-medium transition-colors">
-          <ArrowLeft className="w-4 h-4 mr-1" /> Back
-        </button>
-
-        <div className="bg-emerald-500 w-12 h-12 rounded-lg flex items-center justify-center mb-6 shadow-sm shadow-emerald-200">
-          <Dumbbell className="w-6 h-6 text-white" />
-        </div>
-        
-        {step === 'login' && (
+      <MobileNativeLayout
+        title={selectedClient.name}
+        subtitle="Good Morning"
+        onBack={() => { localStorage.removeItem('protrainer_session'); setStep('login'); setEmail(''); setPassword(''); onBack(); }}
+        bottomNav={
           <>
-            <h1 className="text-xl font-bold text-slate-900 mb-2">Client Portal</h1>
-            <p className="text-[13px] text-slate-500 mb-8 leading-relaxed">
-              Log in to view your workouts and metrics securely.
-            </p>
+            <MobileTabItem icon={<Activity />} label="Dashboard" isActive={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')} />
+            <MobileTabItem icon={<FileText />} label="Logs" isActive={currentView === 'logs'} onClick={() => setCurrentView('logs')} />
+            <MobileTabItem icon={<PlusCircle />} label="Results" isActive={currentView === 'measurements'} onClick={() => setCurrentView('measurements')} />
+          </>
+        }
+      >
+        {currentView === 'dashboard' && (
+          <ClientDashboard clientName={selectedClient.name} logs={clientLogs} measurements={clientMeasurements} />
+        )}
 
-            <form onSubmit={handleLogin} className="space-y-4">
+        {currentView === 'logs' && (
+          <div className="space-y-4">
+            <h3 className="text-white font-bold text-lg mb-4">Exercise History</h3>
+            {clientLogs.length > 0 ? (
+              clientLogs.map((log, i) => (
+                <div key={i} className="bg-[#1C1C1E] rounded-2xl p-4 border border-white/5 flex justify-between items-center">
+                  <div>
+                    <div className="text-white font-semibold">{log.exercise} <span className="text-[#8e8e93] text-sm ml-2">{log.muscleGroup}</span></div>
+                    <div className="text-[#34C759] text-sm mt-1">{log.sets} sets × {log.reps} reps</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-white">{log.weight}</div>
+                    <div className="text-[#8e8e93] text-xs mt-1">{new Date(log.date).toLocaleDateString()}</div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-[#8e8e93] mt-12">No logs found.</div>
+            )}
+          </div>
+        )}
+
+        {currentView === 'measurements' && (
+          <div className="bg-[#1C1C1E] rounded-3xl p-6 border border-white/5">
+            <h3 className="text-lg font-bold text-white mb-2">Log Measurements</h3>
+            <p className="text-[#8e8e93] text-sm mb-6">Track your vitals.</p>
+            
+            <form onSubmit={handleAddMeasurement} className="space-y-5">
               {errorMsg && (
-                <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium border border-red-100">
+                <div className="p-3 bg-red-500/20 text-[#FF3B30] rounded-xl text-sm font-medium">
                   {errorMsg}
                 </div>
               )}
-              
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Client Name / Email</label>
-                <input 
-                  type="text" 
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="e.g. John Doe or email"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition-shadow"
-                  required
-                />
+                <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Body Weight</label>
+                <input type="number" step="0.1" name="weight" className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#34C759] transition-colors" required placeholder="lbs or kg" />
               </div>
-
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Chest</label>
+                  <input type="number" step="0.1" name="chest" className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#34C759] transition-colors" placeholder="in/cm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Hips</label>
+                  <input type="number" step="0.1" name="hips" className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#34C759] transition-colors" placeholder="in/cm" />
+                </div>
+              </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /> Password</label>
-                <input 
-                  type="password" 
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition-shadow"
-                  required
-                />
+                <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Arms</label>
+                <input type="number" step="0.1" name="arms" className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#34C759] transition-colors" placeholder="in/cm" />
               </div>
 
               <button 
                 type="submit"
                 disabled={isLoading}
-                className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 flex justify-center items-center rounded-lg transition-colors disabled:opacity-50"
+                className="w-full mt-4 bg-[#34C759] text-black font-bold py-4 rounded-xl transition-transform active:scale-95 disabled:opacity-50 flex items-center justify-center shadow-[0_4px_16px_rgba(52,199,89,0.3)]"
               >
-                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Secure Login'}
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Progress'}
               </button>
             </form>
-          </>
+          </div>
         )}
+      </MobileNativeLayout>
+    );
+  }
+
+  // Login
+  return (
+    <MobileNativeLayout onBack={onBack} title="Client Login">
+      <div className="flex flex-col items-center justify-center mt-8 mb-12">
+        <div className="w-20 h-20 bg-[#1C1C1E] rounded-[2rem] flex items-center justify-center mb-6 shadow-[0_8px_32px_rgba(52,199,89,0.2)]">
+          <Dumbbell className="w-10 h-10 text-[#34C759]" />
+        </div>
+        <p className="text-[#8e8e93] text-center max-w-[250px]">Sign in to access your workout metrics.</p>
       </div>
-    </div>
+
+      <form onSubmit={handleLogin} className="space-y-4">
+        {errorMsg && (
+          <div className="p-3 bg-red-500/20 text-[#FF3B30] rounded-xl text-sm font-medium">
+            {errorMsg}
+          </div>
+        )}
+        
+        <div>
+          <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">Email or Name</label>
+          <div className="relative">
+            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8e8e93]" />
+            <input 
+              type="text" 
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="Your username"
+              className="w-full bg-[#1C1C1E] border border-transparent rounded-2xl pl-12 pr-4 py-4 text-white outline-none focus:border-[#34C759] focus:bg-[#2C2C2E] transition-all"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">Password</label>
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8e8e93]" />
+            <input 
+              type="password" 
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full bg-[#1C1C1E] border border-transparent rounded-2xl pl-12 pr-4 py-4 text-white outline-none focus:border-[#34C759] focus:bg-[#2C2C2E] transition-all"
+              required
+            />
+          </div>
+        </div>
+
+        <button 
+          type="submit"
+          disabled={isLoading}
+          className="w-full mt-6 bg-gradient-to-tr from-[#34C759] to-[#30b551] text-black font-bold py-4 flex justify-center items-center rounded-2xl transition-transform active:scale-95 disabled:opacity-50 shadow-[0_8px_24px_rgba(52,199,89,0.3)]"
+        >
+          {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Secure Login'}
+        </button>
+      </form>
+    </MobileNativeLayout>
   );
 }

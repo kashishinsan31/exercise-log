@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Dumbbell, PieChart as ChartIcon, Shield } from 'lucide-react';
+import { Dumbbell, Shield, User as UserIcon, Smartphone } from 'lucide-react';
 import { ClientApp } from './components/ClientApp';
 import { AdminApp } from './components/AdminApp';
 import { TrainerApp } from './components/TrainerApp';
+import { MobileNativeLayout } from './components/MobileNativeLayout';
+import { motion } from 'motion/react';
 
 export default function App() {
   const [role, setRole] = useState<'none' | 'trainer' | 'client' | 'admin'>('none');
@@ -35,40 +37,69 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-slate-50 font-sans text-slate-900 overflow-hidden items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
-        <div className="bg-indigo-500 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-6 shadow-sm shadow-indigo-200">
-          <Dumbbell className="w-6 h-6 text-white" />
-        </div>
-        <h1 className="text-xl font-bold text-slate-900 mb-2">ProTrainer Hub</h1>
-        <p className="text-[13px] text-slate-500 mb-8">Select your portal to continue.</p>
-        
-        <div className="space-y-3">
-          <button 
-            onClick={() => setRole('trainer')}
-            className="w-full flex items-center justify-center gap-3 bg-indigo-600 rounded-lg px-4 py-3 text-white hover:bg-indigo-700 transition-colors font-medium text-sm shadow-sm"
-          >
-            <Dumbbell className="w-5 h-5 opacity-70" />
-            <span>Log in as Trainer</span>
-          </button>
-          
-          <button 
-            onClick={() => setRole('client')}
-            className="w-full flex items-center justify-center gap-3 bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-700 hover:bg-slate-50 transition-colors font-medium text-sm shadow-sm"
-          >
-            <ChartIcon className="w-5 h-5 text-slate-400" />
-            <span>Log in as Client</span>
-          </button>
-          
-          <button 
-            onClick={() => setRole('admin')}
-            className="w-full flex items-center justify-center gap-3 bg-slate-900 rounded-lg px-4 py-3 text-white hover:bg-slate-800 transition-colors font-medium text-sm shadow-sm"
-          >
-            <Shield className="w-5 h-5 opacity-70" />
-            <span>Log in as Admin</span>
-          </button>
-        </div>
+    <MobileNativeLayout
+      title="ProTrainer"
+      subtitle="Welcome"
+    >
+      <div className="flex flex-col items-center justify-center mt-12 mb-8">
+         <div className="w-20 h-20 bg-[#1C1C1E] rounded-3xl flex items-center justify-center shadow-[0_8px_32px_rgba(52,199,89,0.2)] mb-6 overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-tr from-[#34C759]/20 to-transparent"></div>
+            <Dumbbell className="w-10 h-10 text-[#34C759] relative z-10" />
+         </div>
+         <h2 className="text-[#8e8e93] text-sm text-center max-w-[250px]">
+           Select your portal to continue.
+         </h2>
       </div>
-    </div>
+
+      <div className="space-y-4 w-full">
+        <motion.button 
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setRole('client')}
+          className="w-full flex items-center justify-between bg-[#1C1C1E] rounded-[20px] p-5 border border-white/5"
+        >
+          <div className="flex items-center gap-4">
+             <div className="w-12 h-12 rounded-full bg-[#007AFF]/10 flex items-center justify-center">
+                <UserIcon className="w-6 h-6 text-[#007AFF]" />
+             </div>
+             <div className="text-left">
+               <div className="text-white font-semibold text-lg">Client</div>
+               <div className="text-[#8e8e93] text-sm">View workouts & stats</div>
+             </div>
+          </div>
+        </motion.button>
+
+        <motion.button 
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setRole('trainer')}
+          className="w-full flex items-center justify-between bg-[#1C1C1E] rounded-[20px] p-5 border border-white/5"
+        >
+          <div className="flex items-center gap-4">
+             <div className="w-12 h-12 rounded-full bg-[#FF9500]/10 flex items-center justify-center">
+                <Dumbbell className="w-6 h-6 text-[#FF9500]" />
+             </div>
+             <div className="text-left">
+               <div className="text-white font-semibold text-lg">Trainer</div>
+               <div className="text-[#8e8e93] text-sm">Manage your clients</div>
+             </div>
+          </div>
+        </motion.button>
+
+        <motion.button 
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setRole('admin')}
+          className="w-full flex items-center justify-between bg-[#1C1C1E] rounded-[20px] p-5 border border-white/5"
+        >
+          <div className="flex items-center gap-4">
+             <div className="w-12 h-12 rounded-full bg-[#FF3B30]/10 flex items-center justify-center">
+                <Shield className="w-6 h-6 text-[#FF3B30]" />
+             </div>
+             <div className="text-left">
+               <div className="text-white font-semibold text-lg">Admin View</div>
+               <div className="text-[#8e8e93] text-sm">System configuration</div>
+             </div>
+          </div>
+        </motion.button>
+      </div>
+    </MobileNativeLayout>
   );
 }

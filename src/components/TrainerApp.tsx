@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Dumbbell, Calendar as CalendarIcon, Loader2, CheckCircle2, List as ListIcon, Activity, Plus, PieChart as ChartIcon, Lock, Trash2 } from 'lucide-react';
+import { LogOut, Dumbbell, Calendar as CalendarIcon, Loader2, CheckCircle2, List as ListIcon, Activity, Plus, PieChart as ChartIcon, Lock, Trash2, Users } from 'lucide-react';
 import { ExerciseLog, BodyMeasurement, fetchExercises, fetchAllClients, doLogin, fetchClientLogs, fetchClientMeasurements, deleteLogRecord, appendLogRecord, appendMeasurement } from '../lib/db';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { ClientDashboard } from './ClientDashboard';
+import { MobileNativeLayout, MobileTabItem } from './MobileNativeLayout';
 
 export function TrainerApp({ onBack }: { onBack: () => void }) {
   const [step, setStep] = useState<'login' | 'dashboard'>(() => {
@@ -41,7 +42,7 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
     }
     return '';
   });
-  const [clients, setClients] = useState<{name: string, password?: string, trainerEmail?: string, phone?: string}>([]);
+  const [clients, setClients] = useState<{name: string, password?: string, trainerEmail?: string, phone?: string}[]>([]);
   const [exercises, setExercises] = useState<{name: string, group: string}[]>([]);
   
   const [selectedClient, setSelectedClient] = useState('');
@@ -49,14 +50,11 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
   const [clientMeasurements, setClientMeasurements] = useState<BodyMeasurement[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'logs' | 'dashboard' | 'measurements'>('logs');
-  const [logFilterDate, setLogFilterDate] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'clients' | 'dashboard' | 'logs' | 'measurements'>('clients');
 
   useEffect(() => {
-    // Fetch global exercises
     fetchExercises().then(data => setExercises(data)).catch(console.error);
     
-    // Auto login check
     const saved = localStorage.getItem('protrainer_session');
     if (saved) {
       try {
@@ -91,7 +89,7 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
         await fetchClients(data.user.email);
         setStep('dashboard');
       } catch (err: any) {
-        setErrorMsg(err.message || 'Login failed. Ensure Admin has connected the Master DB.');
+        setErrorMsg(err.message || 'Login failed.');
       } finally {
         setIsLoading(false);
       }
@@ -99,6 +97,7 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
 
   const loadClientData = async (clientName: string) => {
     setSelectedClient(clientName);
+    setActiveTab('dashboard');
     setIsLoadingLogs(true);
     setErrorMsg('');
     try {
@@ -121,7 +120,6 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
     try {
       await deleteLogRecord(log);
       
-      // Update local state
       setClientLogs(prev => prev.filter(l => 
         l.date !== log.date || 
         l.exercise !== log.exercise || 
@@ -134,309 +132,182 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const currentDate = format(new Date(), 'MMMM d, yyyy');
-
   if (step === 'login') {
     return (
-      <div className="flex h-screen w-full bg-slate-50 font-sans text-slate-900 overflow-hidden items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
-          <button onClick={onBack} className="text-slate-400 hover:text-slate-700 mb-6 flex items-center text-sm font-medium transition-colors">
-            ← Back
-          </button>
-
-          <div className="bg-indigo-500 w-12 h-12 rounded-lg flex items-center justify-center mb-6 shadow-sm shadow-indigo-200">
-            <Dumbbell className="w-6 h-6 text-white" />
+      <MobileNativeLayout onBack={onBack} title="Trainer Login">
+        <div className="flex flex-col items-center justify-center mt-8 mb-12">
+          <div className="w-20 h-20 bg-[#1C1C1E] rounded-[2rem] flex items-center justify-center mb-6 shadow-[0_8px_32px_rgba(0,122,255,0.2)]">
+            <Dumbbell className="w-10 h-10 text-[#007AFF]" />
           </div>
-          
-          <h1 className="text-xl font-bold text-slate-900 mb-2">Trainer Portal</h1>
-          <p className="text-[13px] text-slate-500 mb-8 leading-relaxed">
-            Log in to manage your clients securely.
-          </p>
+          <p className="text-[#8e8e93] text-center max-w-[250px]">Trainer access to manage clients securely.</p>
+        </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            {errorMsg && (
-              <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium border border-red-100">
-                {errorMsg}
-              </div>
-            )}
-            
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Email Address</label>
+        <form onSubmit={handleLogin} className="space-y-4">
+          {errorMsg && (
+            <div className="p-3 bg-red-500/20 text-[#FF3B30] rounded-xl text-sm font-medium">
+              {errorMsg}
+            </div>
+          )}
+          
+          <div>
+            <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">Email</label>
+            <div className="relative">
+              <LogOut className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8e8e93]" />
               <input 
                 type="email" 
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="trainer@example.com"
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
+                className="w-full bg-[#1C1C1E] border border-transparent rounded-2xl pl-12 pr-4 py-4 text-white outline-none focus:border-[#007AFF] focus:bg-[#2C2C2E] transition-all"
                 required
               />
             </div>
+          </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /> Password</label>
+          <div>
+            <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 ml-1">Password</label>
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8e8e93]" />
               <input 
                 type="password" 
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
+                className="w-full bg-[#1C1C1E] border border-transparent rounded-2xl pl-12 pr-4 py-4 text-white outline-none focus:border-[#007AFF] focus:bg-[#2C2C2E] transition-all"
                 required
               />
             </div>
+          </div>
 
-            <button 
-              type="submit"
-              disabled={isLoading}
-              className="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 flex justify-center items-center rounded-lg transition-colors disabled:opacity-50"
-            >
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Secure Login'}
-            </button>
-          </form>
-        </div>
-      </div>
+          <button 
+            type="submit"
+            disabled={isLoading}
+            className="w-full mt-6 bg-[#007AFF] text-white font-bold py-4 flex justify-center items-center rounded-2xl transition-transform active:scale-95 disabled:opacity-50 shadow-[0_8px_24px_rgba(0,122,255,0.3)]"
+          >
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Secure Login'}
+          </button>
+        </form>
+      </MobileNativeLayout>
     );
   }
 
   return (
-    <div className="flex h-[100dvh] w-full bg-slate-50 font-sans text-slate-900 overflow-hidden">
-      <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-hidden hidden md:flex">
-        <div className="p-6 border-b border-slate-100 bg-slate-900 text-white flex justify-between items-start shrink-0">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center font-bold text-lg shadow-sm shadow-indigo-500/20">
-              <Dumbbell className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-sm font-semibold leading-tight">{trainerName}</h1>
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest pt-0.5">Trainer Dashboard</p>
-            </div>
-          </div>
-          <button 
-            onClick={onBack}
-            className="text-slate-400 hover:text-white transition-colors p-1"
-            title="Sign out"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-        
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assigned Clients</span>
-          </div>
-          
+    <MobileNativeLayout
+      title={trainerName}
+      subtitle={selectedClient || "Select a Client"}
+      onBack={() => { localStorage.removeItem('protrainer_session'); setStep('login'); setEmail(''); setPassword(''); onBack(); }}
+      bottomNav={
+        <>
+          <MobileTabItem icon={<Users />} label="Clients" isActive={activeTab === 'clients'} onClick={() => setActiveTab('clients')} activeColor="text-[#007AFF]" />
+          {selectedClient && <MobileTabItem icon={<Activity />} label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} activeColor="text-[#007AFF]" />}
+          {selectedClient && <MobileTabItem icon={<ListIcon />} label="Logs" isActive={activeTab === 'logs'} onClick={() => setActiveTab('logs')} activeColor="text-[#007AFF]" />}
+          {selectedClient && <MobileTabItem icon={<Plus />} label="Metrics" isActive={activeTab === 'measurements'} onClick={() => setActiveTab('measurements')} activeColor="text-[#007AFF]" />}
+        </>
+      }
+    >
+      {activeTab === 'clients' && (
+        <div className="space-y-4">
+          <h3 className="text-white font-bold text-lg mb-4">Assigned Clients</h3>
           {clients.length === 0 ? (
-            <div className="px-3 py-4 text-xs text-slate-500 text-center border border-dashed rounded-lg">No clients assigned.</div>
+            <div className="text-center text-[#8e8e93] mt-12 bg-[#1C1C1E] rounded-3xl p-8 border border-white/5">No clients assigned.</div>
           ) : (
             clients.map((client) => (
               <button 
                 key={client.name}
                 onClick={() => loadClientData(client.name)}
-                className={cn(
-                  "w-full flex items-center justify-between p-3 rounded-xl transition-colors border",
-                  selectedClient === client.name 
-                    ? "bg-indigo-50 text-indigo-700 border-indigo-100 shadow-sm" 
-                    : "hover:bg-slate-50 text-slate-600 border-transparent"
-                )}
+                className="w-full bg-[#1C1C1E] rounded-2xl p-4 border border-white/5 flex items-center justify-between transition-colors hover:bg-[#2C2C2E]"
               >
-                <div className="flex items-center space-x-3 overflow-hidden">
-                  <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-                    selectedClient === client.name ? "bg-indigo-200 text-indigo-700" : "bg-slate-200 text-slate-600"
-                  )}>
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 rounded-full bg-[#007AFF]/20 text-[#007AFF] flex flex-col justify-center items-center font-bold text-lg shrink-0">
                     {client.name.charAt(0).toUpperCase()}
                   </div>
-                  <span className="font-medium text-sm truncate">{client.name}</span>
+                  <div className="text-left">
+                    <div className="text-white font-semibold text-lg">{client.name}</div>
+                  </div>
                 </div>
-                {selectedClient === client.name && <div className="w-2 h-2 rounded-full bg-indigo-500 shrink-0"></div>}
               </button>
             ))
           )}
-        </nav>
-      </aside>
+        </div>
+      )}
 
-      <main className="flex-1 flex flex-col min-w-0 bg-slate-50/50 overflow-hidden relative">
-        <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-3 md:py-0 md:h-16 flex flex-col md:flex-row md:items-center justify-between shrink-0 shadow-sm relative z-10 gap-3 md:gap-4">
-          <div className="flex items-center justify-between w-full md:w-auto">
-             <div className="md:hidden flex items-center gap-2 flex-1 mr-3">
-                <select 
-                  value={selectedClient} 
-                  onChange={(e) => loadClientData(e.target.value)}
-                  className="w-full bg-slate-100 border-none text-sm font-semibold rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="" disabled>Select Client</option>
-                  {clients.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                </select>
-             </div>
+      {selectedClient && activeTab === 'dashboard' && (
+        <div className="pb-10">
+          <ClientDashboard clientName={selectedClient} logs={clientLogs} measurements={clientMeasurements} />
+        </div>
+      )}
 
-            <h2 className="text-lg font-semibold text-slate-800 truncate hidden md:block w-48 lg:w-max">
-              {selectedClient || 'Select a Client from sidebar'}
-            </h2>
-             
-             <button 
-               onClick={onBack}
-               className="md:hidden text-slate-400 hover:text-slate-600 transition-colors p-2 rounded-lg bg-slate-100 border border-slate-200 shrink-0"
-               title="Sign out"
-             >
-               <LogOut className="w-4 h-4" />
-             </button>
-          </div>
-          
-          {selectedClient && (
-            <div className="flex items-center space-x-1 bg-slate-100 rounded-lg p-1 w-full md:w-auto overflow-x-auto shrink-0 drop-shadow-sm md:drop-shadow-none">
-                <button
-                  onClick={() => setActiveTab('logs')}
-                  className={cn(
-                    "flex-1 md:flex-none justify-center px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap",
-                    activeTab === 'logs' ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                  )}
-                >
-                  <ListIcon className="w-3.5 h-3.5 shrink-0" /> Data Logs
-                </button>
-                <button
-                  onClick={() => setActiveTab('measurements')}
-                  className={cn(
-                    "flex-1 md:flex-none justify-center px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap",
-                    activeTab === 'measurements' ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                  )}
-                >
-                  <Activity className="w-3.5 h-3.5 shrink-0" /> Metrics
-                </button>
-                <button
-                  onClick={() => setActiveTab('dashboard')}
-                  className={cn(
-                    "flex-1 md:flex-none justify-center px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap",
-                    activeTab === 'dashboard' ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                  )}
-                >
-                  <ChartIcon className="w-3.5 h-3.5 shrink-0" /> Dashboard
-                </button>
-            </div>
-          )}
-        </header>
-
-        <div className="p-4 md:p-8 flex-1 overflow-y-auto">
-          {!selectedClient ? (
-             <div className="h-full flex flex-col items-center justify-center text-center">
-               <Dumbbell className="w-16 h-16 text-slate-200 mb-4" />
-               <h2 className="text-xl font-bold text-slate-700">Client Workspace</h2>
-               <p className="text-sm text-slate-500 mt-2">Select a client from the sidebar to view & record logs.</p>
-             </div>
-          ) : activeTab === 'dashboard' ? (
-             <div className="max-w-6xl mx-auto pb-20">
-               <ClientDashboard clientName={selectedClient} logs={clientLogs} measurements={clientMeasurements} />
-             </div>
-          ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 max-w-7xl mx-auto h-full min-h-0">
-               {/* Input Section */}
-              <section className="xl:col-span-4 flex flex-col overflow-y-auto pr-1 pb-10">
-                {activeTab === 'logs' ? (
-                  <LoggerForm 
-                    clientName={selectedClient}
-                    exercises={exercises}
-                    onLogAdded={(log) => setClientLogs(p => [log, ...p].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()))}
-                  />
-                ) : (
-                  <MeasurementForm 
-                    clientName={selectedClient}
-                    onMeasurementAdded={(m) => setClientMeasurements(p => [m, ...p].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()))}
-                  />
-                )}
-              </section>
-              
-               {/* Table/History Section */}
-              <section className="xl:col-span-8 flex flex-col h-[500px] xl:h-[calc(100vh-140px)] min-h-[400px]">
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden">
-                  <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-                    <h3 className="text-sm font-bold text-slate-800 tracking-wider">
-                      {activeTab === 'logs' ? 'LOGGED EXERCISES' : 'BODY METRICS'}
-                    </h3>
-                  </div>
-                  <div className="flex-1 overflow-auto">
-                    {activeTab === 'logs' ? (
-                      <table className="w-full text-left border-collapse min-w-[600px]">
-                        <thead className="bg-slate-50/80 text-slate-400 text-[10px] font-bold uppercase tracking-wider sticky top-0 z-10 backdrop-blur-sm border-b border-slate-100">
-                          <tr>
-                            <th className="px-6 py-4">Date</th>
-                            <th className="px-6 py-4">Muscle Group</th>
-                            <th className="px-6 py-4">Exercise</th>
-                            <th className="px-6 py-4 text-center">Sets</th>
-                            <th className="px-6 py-4 text-center">Reps</th>
-                            <th className="px-6 py-4 text-center">Weight</th>
-                            <th className="px-6 py-4 text-center">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50 text-sm">
-                          {isLoadingLogs ? (
-                            <tr><td colSpan={7} className="px-6 py-16 text-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-400 mx-auto" /></td></tr>
-                          ) : clientLogs.length === 0 ? (
-                            <tr><td colSpan={7} className="px-6 py-16 text-center text-slate-400">No exercises logged.</td></tr>
-                          ) : (
-                            clientLogs.map((log, idx) => (
-                              <tr key={idx} className="hover:bg-indigo-50/30 transition-colors">
-                                <td className="px-6 py-4 text-slate-500 whitespace-nowrap text-xs font-medium">
-                                  {format(new Date(log.date), 'MMM d, yy')}
-                                </td>
-                                <td className="px-6 py-4">
-                                  <span className="px-2 py-1 rounded text-[10px] font-bold tracking-wider bg-slate-100 text-slate-600">
-                                    {log.muscleGroup.toUpperCase()}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 font-medium text-slate-700">{log.exercise}</td>
-                                <td className="px-6 py-4 text-center font-medium text-slate-600">{log.sets}</td>
-                                <td className="px-6 py-4 text-center font-medium text-slate-600">{log.reps}</td>
-                                <td className="px-6 py-4 text-center text-indigo-600 font-semibold">{log.weight}</td>
-                                <td className="px-6 py-4 text-center">
-                                  <button onClick={() => handleDeleteLog(log)} className="text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors" title="Delete Log">
-                                    <Trash2 className="w-4 h-4 mx-auto" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <table className="w-full text-left border-collapse min-w-[600px]">
-                      <thead className="bg-slate-50/80 text-slate-400 text-[10px] font-bold uppercase tracking-wider sticky top-0 z-10 backdrop-blur-sm border-b border-slate-100">
-                        <tr>
-                          <th className="px-6 py-4">Date</th>
-                          <th className="px-6 py-4 text-center">Body Weight</th>
-                          <th className="px-6 py-4 text-center">Chest</th>
-                          <th className="px-6 py-4 text-center">Hips</th>
-                          <th className="px-6 py-4 text-center">Arms</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50 text-sm">
-                        {isLoadingLogs ? (
-                           <tr><td colSpan={5} className="px-6 py-16 text-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-400 mx-auto" /></td></tr>
-                        ) : clientMeasurements.length === 0 ? (
-                          <tr><td colSpan={5} className="px-6 py-16 text-center text-slate-400 text-sm">No measurements logged.</td></tr>
-                        ) : (
-                          clientMeasurements.map((m, idx) => (
-                            <tr key={idx} className="hover:bg-indigo-50/30 transition-colors">
-                              <td className="px-6 py-4 text-slate-500 whitespace-nowrap text-xs font-medium">
-                                {format(new Date(m.date), 'MMM d, yy')}
-                              </td>
-                              <td className="px-6 py-4 text-center text-indigo-600 font-semibold">{m.weight}</td>
-                              <td className="px-6 py-4 text-center font-medium text-slate-600">{m.chest}</td>
-                              <td className="px-6 py-4 text-center font-medium text-slate-600">{m.hips}</td>
-                              <td className="px-6 py-4 text-center font-medium text-slate-600">{m.arms}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                    )}
+      {selectedClient && activeTab === 'logs' && (
+        <div className="space-y-6 pb-20">
+          <LoggerForm 
+            clientName={selectedClient}
+            exercises={exercises}
+            onLogAdded={(log) => setClientLogs(p => [log, ...p].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()))}
+          />
+          <div className="space-y-4">
+            <h3 className="text-white font-bold text-lg mb-4 mt-6">Logged Exercises</h3>
+            {isLoadingLogs ? (
+               <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-[#007AFF]" /></div>
+            ) : clientLogs.length === 0 ? (
+               <div className="text-center text-[#8e8e93] bg-[#1C1C1E] p-8 rounded-3xl border border-white/5">No exercises logged.</div>
+            ) : (
+               clientLogs.map((log, idx) => (
+                <div key={idx} className="bg-[#1C1C1E] rounded-2xl p-4 border border-white/5 flex flex-col gap-2 relative">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="text-white font-semibold flex items-center gap-2">
+                        {log.exercise}
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-white/10 text-white/70">
+                          {log.muscleGroup}
+                        </span>
+                      </div>
+                      <div className="text-[#007AFF] text-sm mt-1">{log.sets} sets × {log.reps} reps @ {log.weight}</div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                       <button onClick={() => handleDeleteLog(log)} className="text-[#8e8e93] hover:text-[#FF3B30] p-1"><Trash2 className="w-4 h-4" /></button>
+                       <div className="text-[#8e8e93] text-xs pt-1">{format(new Date(log.date), 'MMM d')}</div>
+                    </div>
                   </div>
                 </div>
-              </section>
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
-      </main>
-    </div>
+      )}
+
+      {selectedClient && activeTab === 'measurements' && (
+        <div className="space-y-6 pb-20">
+          <MeasurementForm 
+            clientName={selectedClient}
+            onMeasurementAdded={(m) => setClientMeasurements(p => [m, ...p].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()))}
+          />
+          <div className="space-y-4">
+            <h3 className="text-white font-bold text-lg mb-4 mt-6">Body Metrics</h3>
+            {isLoadingLogs ? (
+               <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-[#007AFF]" /></div>
+            ) : clientMeasurements.length === 0 ? (
+               <div className="text-center text-[#8e8e93] bg-[#1C1C1E] p-8 rounded-3xl border border-white/5">No measurements logged.</div>
+            ) : (
+               clientMeasurements.map((m, idx) => (
+                <div key={idx} className="bg-[#1C1C1E] rounded-2xl p-4 border border-white/5">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-[#8e8e93] text-xs font-semibold uppercase">{format(new Date(m.date), 'MMMM d, yyyy')}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div><span className="text-[10px] text-[#8e8e93] uppercase">Weight</span><p className="text-white font-bold">{m.weight}</p></div>
+                    <div><span className="text-[10px] text-[#8e8e93] uppercase">Chest</span><p className="text-white font-bold">{m.chest}</p></div>
+                    <div><span className="text-[10px] text-[#8e8e93] uppercase">Hips</span><p className="text-white font-bold">{m.hips}</p></div>
+                    <div><span className="text-[10px] text-[#8e8e93] uppercase">Arms</span><p className="text-white font-bold">{m.arms}</p></div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </MobileNativeLayout>
   );
 }
-
 
 function LoggerForm({ 
   clientName,
@@ -503,117 +374,70 @@ function LoggerForm({
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 shrink-0">
-      <h3 className="text-sm font-bold text-slate-800 tracking-wider mb-6">ADD EXERCISE LOG</h3>
+    <div className="bg-[#1C1C1E] p-6 rounded-3xl border border-white/5">
+      <h3 className="text-white font-bold text-lg mb-4">Add Log for {clientName}</h3>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {errorMsg && (
-          <div className="p-3 rounded-lg bg-red-50 border border-red-100 text-red-600 text-[13px] font-medium leading-relaxed">
-            {errorMsg}
-          </div>
-        )}
-        {successMsg && (
-          <div className="p-3 rounded-lg bg-indigo-50 text-indigo-700 text-[13px] font-medium flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
-            <span className="truncate">{successMsg}</span>
-          </div>
-        )}
+        {errorMsg && <div className="p-3 rounded-xl bg-red-500/20 text-[#FF3B30] text-sm font-medium">{errorMsg}</div>}
+        {successMsg && <div className="p-3 rounded-xl bg-[#34C759]/20 text-[#34C759] text-sm font-medium flex items-center gap-2"><CheckCircle2 className="w-4 h-4" />{successMsg}</div>}
         
         <div>
-          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 flex items-center gap-1.5">
-            <CalendarIcon className="w-3.5 h-3.5" /> Date
-          </label>
-          <input 
-            type="date" 
-            required
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm outline-none ring-indigo-500 focus:ring-1 focus:bg-white text-slate-900 transition-colors shadow-sm"
-          />
+          <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Date</label>
+          <input type="date" required value={date} onChange={(e) => setDate(e.target.value)}
+            className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors" />
         </div>
 
         <div>
-          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 mt-2">Muscle Group</label>
-          <select 
-            value={muscleGroup}
-            onChange={(e) => {
-               setMuscleGroup(e.target.value);
-               setExercise('');
-            }}
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-slate-700 outline-none ring-indigo-500 focus:ring-1 focus:bg-white transition-colors shadow-sm"
+          <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Muscle Group</label>
+          <select value={muscleGroup} onChange={(e) => { setMuscleGroup(e.target.value); setExercise(''); }}
+            className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors"
           >
-            {availableGroups.map((group) => (
-              <option key={group} value={group}>{group}</option>
-            ))}
+            {availableGroups.map((group) => <option key={group} value={group}>{group}</option>)}
           </select>
         </div>
 
         <div>
-          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 mt-2">Exercise Name</label>
+          <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Exercise Name</label>
           {filteredExercises.length > 0 ? (
-            <select 
-              required
-              value={exercise}
-              onChange={(e) => setExercise(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-slate-700 outline-none ring-indigo-500 focus:ring-1 focus:bg-white transition-colors shadow-sm"
+            <select required value={exercise} onChange={(e) => setExercise(e.target.value)}
+              className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors"
             >
               <option value="" disabled>Select an exercise</option>
-              {filteredExercises.map((ex) => (
-                <option key={ex.name} value={ex.name}>{ex.name}</option>
-              ))}
+              {filteredExercises.map((ex) => <option key={ex.name} value={ex.name}>{ex.name}</option>)}
             </select>
           ) : (
-            <input 
-              type="text" 
-              required
-              placeholder="e.g. Barbell Squats"
-              value={exercise}
-              onChange={(e) => setExercise(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm outline-none ring-indigo-500 focus:ring-1 focus:bg-white text-slate-900 placeholder:text-slate-400 transition-colors shadow-sm"
-            />
+            <input type="text" required placeholder="e.g. Barbell Squats" value={exercise} onChange={(e) => setExercise(e.target.value)}
+              className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors" />
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-3 pt-2">
+        <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 text-center">Sets</label>
+            <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 text-center">Sets</label>
             <input type="number" min="0" placeholder="4" value={sets} onChange={(e) => setSets(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-center outline-none ring-indigo-500 focus:ring-1 focus:bg-white text-slate-900 transition-colors shadow-sm" />
+              className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-3 text-white outline-none focus:border-[#007AFF] text-center transition-colors" />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 text-center">Reps</label>
+            <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 text-center">Reps</label>
             <input type="number" min="0" placeholder="12" value={reps} onChange={(e) => setReps(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-center outline-none ring-indigo-500 focus:ring-1 focus:bg-white text-slate-900 transition-colors shadow-sm" />
+              className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-3 text-white outline-none focus:border-[#007AFF] text-center transition-colors" />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 text-center">lbs / kg</label>
+            <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2 text-center">Weight</label>
             <input type="number" min="0" placeholder="185" value={weight} onChange={(e) => setWeight(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-center outline-none ring-indigo-500 focus:ring-1 focus:bg-white text-slate-900 transition-colors shadow-sm" />
+              className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-3 text-white outline-none focus:border-[#007AFF] text-center transition-colors" />
           </div>
         </div>
 
-        <div className="pt-4">
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="w-full bg-slate-900 text-white py-3 rounded-lg text-sm font-bold mt-2 flex justify-center items-center gap-2 hover:bg-slate-800 transition-all disabled:opacity-70 shadow-md"
-          >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin opacity-70" /> : null}
-            {isSaving ? 'Logging Entry...' : 'Log Entry'}
-          </button>
-        </div>
+        <button type="submit" disabled={isSaving} className="w-full mt-4 bg-[#007AFF] text-white font-bold py-4 rounded-xl transition-transform active:scale-95 disabled:opacity-50 flex items-center justify-center">
+          {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Log'}
+        </button>
       </form>
     </div>
   );
 }
 
-function MeasurementForm({ 
-  clientName,
-  onMeasurementAdded
-}: { 
-  clientName: string;
-  onMeasurementAdded: (m: BodyMeasurement) => void;
-}) {
+function MeasurementForm({ clientName, onMeasurementAdded }: { clientName: string; onMeasurementAdded: (m: BodyMeasurement) => void; }) {
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -639,9 +463,9 @@ function MeasurementForm({
 
     try {
       await appendMeasurement(newM);
-
       onMeasurementAdded(newM);
       setSuccessMsg(`Logged measurements`);
+      setWeight(''); setChest(''); setHips(''); setArms('');
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to save record.');
     } finally {
@@ -651,49 +475,44 @@ function MeasurementForm({
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 shrink-0">
-      <h3 className="text-sm font-bold text-slate-800 tracking-wider mb-6">ADD BODY METRICS</h3>
+    <div className="bg-[#1C1C1E] p-6 rounded-3xl border border-white/5">
+      <h3 className="text-white font-bold text-lg mb-4">Add Metrics for {clientName}</h3>
       <form onSubmit={handleSubmit} className="space-y-4">
-        {errorMsg && <div className="p-3 rounded-lg bg-red-50 border border-red-100 text-red-600 text-[13px] font-medium leading-relaxed">{errorMsg}</div>}
-        {successMsg && <div className="p-3 rounded-lg bg-indigo-50 text-indigo-700 text-[13px] font-medium flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" /><span className="truncate">{successMsg}</span></div>}
+        {errorMsg && <div className="p-3 rounded-xl bg-red-500/20 text-[#FF3B30] text-sm font-medium">{errorMsg}</div>}
+        {successMsg && <div className="p-3 rounded-xl bg-[#34C759]/20 text-[#34C759] text-sm font-medium flex items-center gap-2"><CheckCircle2 className="w-4 h-4" />{successMsg}</div>}
         
         <div>
-          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 flex items-center gap-1.5">
-            <CalendarIcon className="w-3.5 h-3.5" /> Date
-          </label>
+          <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Date</label>
           <input type="date" required value={date} onChange={(e) => setDate(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm outline-none ring-indigo-500 focus:ring-1 focus:bg-white text-slate-900 transition-colors shadow-sm" />
+            className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors" />
         </div>
 
-        <div className="grid grid-cols-2 gap-3 pt-2">
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Body Weight</label>
-            <input type="text" placeholder="180 lbs" value={weight} onChange={(e) => setWeight(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm outline-none ring-indigo-500 focus:ring-1 focus:bg-white text-slate-900 transition-colors shadow-sm" required />
+            <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Body Weight</label>
+            <input type="number" step="0.1" placeholder="lbs/kg" value={weight} onChange={(e) => setWeight(e.target.value)}
+              className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors" required />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Chest</label>
-            <input type="text" placeholder="40 in" value={chest} onChange={(e) => setChest(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm outline-none ring-indigo-500 focus:ring-1 focus:bg-white text-slate-900 transition-colors shadow-sm" />
+            <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Chest</label>
+            <input type="number" step="0.1" placeholder="in/cm" value={chest} onChange={(e) => setChest(e.target.value)}
+              className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors" />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Hips</label>
-            <input type="text" placeholder="34 in" value={hips} onChange={(e) => setHips(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm outline-none ring-indigo-500 focus:ring-1 focus:bg-white text-slate-900 transition-colors shadow-sm" />
+            <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Hips</label>
+            <input type="number" step="0.1" placeholder="in/cm" value={hips} onChange={(e) => setHips(e.target.value)}
+              className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors" />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Arms</label>
-            <input type="text" placeholder="16 in" value={arms} onChange={(e) => setArms(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm outline-none ring-indigo-500 focus:ring-1 focus:bg-white text-slate-900 transition-colors shadow-sm" />
+            <label className="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Arms</label>
+            <input type="number" step="0.1" placeholder="in/cm" value={arms} onChange={(e) => setArms(e.target.value)}
+              className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl p-4 text-white outline-none focus:border-[#007AFF] transition-colors" />
           </div>
         </div>
 
-        <div className="pt-4">
-          <button type="submit" disabled={isSaving} className="w-full bg-slate-900 text-white py-3 rounded-lg text-sm font-bold mt-2 flex justify-center items-center gap-2 hover:bg-slate-800 transition-all disabled:opacity-70 shadow-md">
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin opacity-70" /> : null}
-            {isSaving ? 'Logging Metrics...' : 'Log Metrics'}
-          </button>
-        </div>
+        <button type="submit" disabled={isSaving} className="w-full mt-4 bg-[#007AFF] text-white font-bold py-4 rounded-xl transition-transform active:scale-95 disabled:opacity-50 flex items-center justify-center">
+          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Metrics'}
+        </button>
       </form>
     </div>
   );
