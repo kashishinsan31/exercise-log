@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, LogOut, Plus, Users, Dumbbell, Activity, LineChart as LineChartIcon, Loader2, Database, Link as LinkIcon, UserPlus, Trash2 } from 'lucide-react';
-import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, ClientProfile, ExerciseLog, BodyMeasurement, initializeDatabase, addTrainer, addClient, deleteTrainerRecord, deleteClientRecord } from '../lib/db';
+import { Shield, LogOut, Plus, Users, Dumbbell, Activity, LineChart as LineChartIcon, Loader2, Database, Link as LinkIcon, UserPlus, Trash2, Edit2, X, Check } from 'lucide-react';
+import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, ClientProfile, ExerciseLog, BodyMeasurement, initializeDatabase, addTrainer, addClient, deleteTrainerRecord, deleteClientRecord, updateTrainer, updateClient } from '../lib/db';
 import { ClientDashboard } from './ClientDashboard';
 
 interface TrackedTrainer {
@@ -42,6 +42,18 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   const [newClientHeight, setNewClientHeight] = useState('');
   const [isAddingClient, setIsAddingClient] = useState(false);
 
+  // Edit Trainer State
+  const [editingTrainerEmail, setEditingTrainerEmail] = useState<string | null>(null);
+  const [editTrainerName, setEditTrainerName] = useState('');
+  const [editTrainerPassword, setEditTrainerPassword] = useState('');
+
+  // Edit Client State
+  const [editingClientKey, setEditingClientKey] = useState<string | null>(null);
+  const [editClientPhone, setEditClientPhone] = useState('');
+  const [editClientDob, setEditClientDob] = useState('');
+  const [editClientHeight, setEditClientHeight] = useState('');
+  const [editClientPassword, setEditClientPassword] = useState('');
+
   // Selected Trainer State
   const [selectedTrainer, setSelectedTrainer] = useState<TrackedTrainer | null>(null);
   const [trainerClients, setTrainerClients] = useState<ClientProfile[]>([]);
@@ -78,8 +90,10 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
           const cData = await fetchAllClients();
           setTrainers(tData || []);
           setClients(cData || []);
-      } catch (err) {
+          setAddDBError('');
+      } catch (err: any) {
          console.error('Failed to load system data:', err);
+         setAddDBError(err.message || 'Failed to connect to database.');
       }
   };
 
@@ -89,9 +103,9 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
     setIsAddingDB(true);
     setAddDBError('');
     try {
-      // Admin initialize
-      localStorage.setItem('protrainer_db', 'firestore-connected');
-      setDbSpreadsheetId('firestore-connected');
+         const sid = await initializeDatabase("admin@example.com");
+         localStorage.setItem('protrainer_db', sid);
+         setDbSpreadsheetId(sid);
       await loadSystemData();
       setDbInputMode('none');
     } catch (err: any) {
@@ -141,7 +155,34 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
       }
   };
 
-  const handleDeleteTrainer = async (e: React.MouseEvent, email: string) => { e.stopPropagation(); if (!confirm('Are you sure you want to delete trainer ' + email + '?')) return; try { await deleteTrainerRecord(email); setTrainers(prev => prev.filter(t => t.email !== email)); if (selectedTrainer?.email === email) { setSelectedTrainer(null); setTrainerClients([]); } } catch (err: any) { alert(err.message); } }; const handleDeleteClient = async (e: React.MouseEvent, name: string, trainerEmail: string) => { e.stopPropagation(); if (!confirm('Are you sure you want to delete client ' + name + '?')) return; try { await deleteClientRecord(name, trainerEmail); setClients(prev => prev.filter(c => !(c.name === name && c.trainerEmail === trainerEmail))); if (selectedTrainer?.email === trainerEmail) { setTrainerClients(prev => prev.filter(c => c.name !== name)); } if (selectedClient?.name === name) { setSelectedClient(null); } } catch (err: any) { alert(err.message); } };  const loadTrainerData = async (trainer: TrackedTrainer) => {
+  const handleDeleteTrainer = async (e: React.MouseEvent, email: string) => { e.stopPropagation(); if (!confirm('Are you sure you want to delete trainer ' + email + '?')) return; try { await deleteTrainerRecord(email); setTrainers(prev => prev.filter(t => t.email !== email)); if (selectedTrainer?.email === email) { setSelectedTrainer(null); setTrainerClients([]); } } catch (err: any) { alert(err.message); } }; 
+  const handleDeleteClient = async (e: React.MouseEvent, name: string, trainerEmail: string) => { e.stopPropagation(); if (!confirm('Are you sure you want to delete client ' + name + '?')) return; try { await deleteClientRecord(name, trainerEmail); setClients(prev => prev.filter(c => !(c.name === name && c.trainerEmail === trainerEmail))); if (selectedTrainer?.email === trainerEmail) { setTrainerClients(prev => prev.filter(c => c.name !== name)); } if (selectedClient?.name === name) { setSelectedClient(null); } } catch (err: any) { alert(err.message); } }; 
+
+  const handleEditTrainerSave = async (e: React.MouseEvent | React.FormEvent, email: string) => {
+      e.stopPropagation();
+      e.preventDefault();
+      try {
+          await updateTrainer(email, { name: editTrainerName, password: editTrainerPassword });
+          setEditingTrainerEmail(null);
+          await loadSystemData(dbSpreadsheetId);
+      } catch (err: any) {
+          alert('Error updating: ' + err.message);
+      }
+  };
+
+  const handleEditClientSave = async (e: React.MouseEvent | React.FormEvent, name: string, trainerEmail: string) => {
+      e.stopPropagation();
+      e.preventDefault();
+      try {
+          await updateClient(name, trainerEmail, { phone: editClientPhone, dob: editClientDob, height: editClientHeight, password: editClientPassword });
+          setEditingClientKey(null);
+          await loadSystemData(dbSpreadsheetId);
+      } catch (err: any) {
+          alert('Error updating: ' + err.message);
+      }
+  };
+
+  const loadTrainerData = async (trainer: TrackedTrainer) => {
     setIsLoadingData(true);
     setSelectedTrainer(trainer);
     setSelectedClient(null);
@@ -255,24 +296,17 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                     <h1 className="text-2xl font-bold text-slate-800">System Dashboard</h1>
                     <p className="text-sm text-slate-500 mt-1">Manage all connected trainers and clients system-wide.</p>
                   </div>
-                  {dbSpreadsheetId && (
-                    <a href={`https://docs.google.com/spreadsheets/d/${dbSpreadsheetId}/edit`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg hover:bg-emerald-100 transition-colors">
-                      <Database className="w-4 h-4" /> Open Master DB
-                    </a>
-                  )}
                 </div>
 
-                {!dbSpreadsheetId ? (
+                 {!dbSpreadsheetId ? (
                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col justify-center items-center text-center max-w-xl mx-auto mt-12">
                      <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-6 shadow-inner">
                         <Database className="w-8 h-8" />
                      </div>
                      <h3 className="text-xl font-bold text-slate-800 mb-2">Initialize System Database</h3>
-                     <p className="text-sm text-slate-500 mb-8 max-w-md">Connect your existing ProTrainer Master DB or generate a fresh one automatically inside your Google Drive.</p>
+                     <p className="text-sm text-slate-500 mb-8 max-w-md">Initialize the Firestore database to begin adding trainers and clients.</p>
                      
                      <div className="w-full space-y-4">
-                       {dbInputMode === 'none' ? (
-                         <>
                            <button 
                              onClick={() => handleConnectOrGenerateDB()}
                              disabled={isAddingDB}
@@ -280,40 +314,6 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                            >
                               {isAddingDB ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Default Admin Database'}
                            </button>
-                           <button onClick={() => setDbInputMode('url')} className="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-700">
-                              Or connect existing via URL
-                           </button>
-                         </>
-                       ) : (
-                         <form onSubmit={handleConnectOrGenerateDB} className="space-y-4 text-left bg-slate-50 p-4 rounded-xl border border-slate-100">
-                            {addDBError && (
-                              <div className="p-3 bg-red-50 text-red-600 rounded-lg text-xs font-bold border border-red-100">
-                                {addDBError}
-                              </div>
-                            )}
-                            <div>
-                              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><LinkIcon className="w-3.5 h-3.5"/> Spreadsheet URL</label>
-                              <input 
-                                type="text"
-                                value={dbUrl}
-                                onChange={(e) => setDbUrl(e.target.value)}
-                                placeholder="https://docs.google.com/spreadsheets/d/..."
-                                className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
-                                required
-                              />
-                            </div>
-                            <div className="flex gap-2">
-                              <button type="button" onClick={() => setDbInputMode('none')} className="bg-white border border-slate-200 text-slate-600 font-bold py-3 flex-1 rounded-lg text-xs hover:bg-slate-50 transition-colors">Cancel</button>
-                              <button 
-                                type="submit"
-                                disabled={isAddingDB}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 flex-1 flex justify-center items-center rounded-lg transition-colors disabled:opacity-50 text-xs shadow-sm"
-                              >
-                                {isAddingDB ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Connect DB'}
-                              </button>
-                            </div>
-                         </form>
-                       )}
                      </div>
                    </div>
                 ) : (
@@ -357,28 +357,55 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                              {trainers.map((t, idx) => (
                                <div 
                                  key={idx}
-                                 onClick={() => loadTrainerData(t)}
+                                 onClick={() => { if (editingTrainerEmail !== t.email) loadTrainerData(t); }}
                                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-white bg-transparent transition-colors text-left border border-transparent hover:border-slate-200 shadow-sm hover:shadow cursor-pointer"
                                >
-                                 <div className="flex items-center gap-3">
-                                   <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-700 text-sm">
-                                     {t.name.charAt(0).toUpperCase()}
-                                   </div>
-                                   <div className="flex-1 overflow-hidden">
-                                     <p className="text-sm font-bold text-slate-800 truncate">{t.name}</p>
-                                     <p className="text-xs text-slate-500 truncate">{t.email}</p>
-                                   </div>
-                                 </div>
-                                 <div className="flex items-center gap-2 shrink-0">
-                                   <button
-                                     onClick={(e) => handleDeleteTrainer(e, t.email)}
-                                     className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                     title="Delete Trainer"
-                                   >
-                                     <Trash2 className="w-4 h-4" />
-                                   </button>
-                                   <Activity className="w-4 h-4 text-indigo-300" />
-                                 </div>
+                                 {editingTrainerEmail === t.email ? (
+                                    <div className="flex-1 right-0 flex gap-2 items-center" onClick={e => e.stopPropagation()}>
+                                      <div className="flex-1 space-y-2">
+                                        <input type="text" placeholder="Name" value={editTrainerName} onChange={e => setEditTrainerName(e.target.value)} className="w-full text-xs px-2 py-1 border rounded" />
+                                        <input type="password" placeholder="New Password" value={editTrainerPassword} onChange={e => setEditTrainerPassword(e.target.value)} className="w-full text-xs px-2 py-1 border rounded" />
+                                      </div>
+                                      <div className="flex gap-1 shrink-0">
+                                        <button onClick={(e) => handleEditTrainerSave(e, t.email)} className="p-1 text-green-600 hover:bg-green-50 rounded"><Check className="w-4 h-4"/></button>
+                                        <button onClick={() => setEditingTrainerEmail(null)} className="p-1 text-slate-400 hover:bg-slate-100 rounded"><X className="w-4 h-4"/></button>
+                                      </div>
+                                    </div>
+                                 ) : (
+                                   <>
+                                     <div className="flex items-center gap-3">
+                                       <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-700 text-sm">
+                                         {t.name.charAt(0).toUpperCase()}
+                                       </div>
+                                       <div className="flex-1 overflow-hidden">
+                                         <p className="text-sm font-bold text-slate-800 truncate">{t.name}</p>
+                                         <p className="text-xs text-slate-500 truncate">{t.email}</p>
+                                       </div>
+                                     </div>
+                                     <div className="flex items-center gap-2 shrink-0">
+                                       <button
+                                         onClick={(e) => {
+                                           e.stopPropagation();
+                                           setEditingTrainerEmail(t.email);
+                                           setEditTrainerName(t.name);
+                                           setEditTrainerPassword('');
+                                         }}
+                                         className="p-1.5 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+                                         title="Edit Trainer"
+                                       >
+                                         <Edit2 className="w-4 h-4" />
+                                       </button>
+                                       <button
+                                         onClick={(e) => handleDeleteTrainer(e, t.email)}
+                                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                         title="Delete Trainer"
+                                       >
+                                         <Trash2 className="w-4 h-4" />
+                                       </button>
+                                       <Activity className="w-4 h-4 text-indigo-300" />
+                                     </div>
+                                   </>
+                                 )}
                                </div>
                              ))}
                              {trainers.length === 0 && !showAddTrainer && (
@@ -432,21 +459,55 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                           <div className="space-y-1">
                              {clients.map((c, idx) => {
                                const assignedTrainer = trainers.find(t => t.email === c.trainerEmail);
+                               const cKey = `${c.name}_${c.trainerEmail}`;
                                return (
                                <div key={idx} className="w-full flex items-center justify-between p-3 rounded-xl bg-transparent border border-transparent shadow-sm">
-                                 <div className="flex items-center gap-3">
-                                   <div className="flex-1 overflow-hidden">
-                                     <p className="text-sm font-bold text-slate-800 truncate">{c.name}</p>
-                                     <p className="text-[10px] text-slate-500 truncate font-bold uppercase mt-0.5">Assigned to: {assignedTrainer ? assignedTrainer.name : c.trainerEmail}</p>
-                                   </div>
-                                 </div>
-                                 <button
-                                   onClick={(e) => handleDeleteClient(e, c.name, c.trainerEmail)}
-                                   className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
-                                   title="Delete Client"
-                                 >
-                                   <Trash2 className="w-4 h-4" />
-                                 </button>
+                                 {editingClientKey === cKey ? (
+                                    <div className="flex-1 right-0 flex gap-2 items-center" onClick={e => e.stopPropagation()}>
+                                      <div className="flex-1 space-y-1">
+                                        <input type="text" placeholder="Phone" value={editClientPhone} onChange={e => setEditClientPhone(e.target.value)} className="w-full text-xs px-2 py-1 border rounded" />
+                                        <input type="date" placeholder="DOB" value={editClientDob} onChange={e => setEditClientDob(e.target.value)} className="w-full text-xs px-2 py-1 border rounded" />
+                                        <input type="text" placeholder="Height" value={editClientHeight} onChange={e => setEditClientHeight(e.target.value)} className="w-full text-xs px-2 py-1 border rounded" />
+                                        <input type="password" placeholder="New Password" value={editClientPassword} onChange={e => setEditClientPassword(e.target.value)} className="w-full text-xs px-2 py-1 border rounded" />
+                                      </div>
+                                      <div className="flex gap-1 shrink-0">
+                                        <button onClick={(e) => handleEditClientSave(e, c.name, c.trainerEmail)} className="p-1 text-green-600 hover:bg-green-50 rounded"><Check className="w-4 h-4"/></button>
+                                        <button onClick={() => setEditingClientKey(null)} className="p-1 text-slate-400 hover:bg-slate-100 rounded"><X className="w-4 h-4"/></button>
+                                      </div>
+                                    </div>
+                                 ) : (
+                                   <>
+                                     <div className="flex items-center gap-3">
+                                       <div className="flex-1 overflow-hidden">
+                                         <p className="text-sm font-bold text-slate-800 truncate">{c.name}</p>
+                                         <p className="text-[10px] text-slate-500 truncate font-bold uppercase mt-0.5">Assigned to: {assignedTrainer ? assignedTrainer.name : c.trainerEmail}</p>
+                                       </div>
+                                     </div>
+                                     <div className="flex items-center gap-2 shrink-0">
+                                       <button
+                                         onClick={(e) => {
+                                           e.stopPropagation();
+                                           setEditingClientKey(cKey);
+                                           setEditClientPhone(c.phone || '');
+                                           setEditClientDob(c.dob || '');
+                                           setEditClientHeight(c.height || '');
+                                           setEditClientPassword('');
+                                         }}
+                                         className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
+                                         title="Edit Client"
+                                       >
+                                         <Edit2 className="w-4 h-4" />
+                                       </button>
+                                       <button
+                                         onClick={(e) => handleDeleteClient(e, c.name, c.trainerEmail)}
+                                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                                         title="Delete Client"
+                                       >
+                                         <Trash2 className="w-4 h-4" />
+                                       </button>
+                                     </div>
+                                   </>
+                                 )}
                                </div>
                              )})}
                              {clients.length === 0 && !showAddClient && (

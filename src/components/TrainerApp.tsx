@@ -117,6 +117,8 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
   };
 
   const handleDeleteLog = async (log: ExerciseLog) => {
+    const isConfirmed = window.confirm(`Are you sure you want to delete this log? This action cannot be undone.`);
+    if (!isConfirmed) return;
     try {
       await deleteLogRecord(log);
       

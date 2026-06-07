@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, getDocs, getDoc, query, where, addDoc, orderBy, deleteDoc } from "firebase/firestore";
+import { collection, doc, setDoc, getDocs, getDoc, query, where, addDoc, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
 
 export type ClientProfile = {
@@ -10,13 +10,9 @@ export type ClientProfile = {
   password?: string;
 };
 
-export type BodyMeasurement = {
-  date: string;
-  clientName: string;
-  weight: string;
-  chest: string;
-  hips: string;
-  arms: string;
+export type TrackedTrainer = {
+  name: string;
+  email: string;
 };
 
 export type ExerciseLog = {
@@ -30,9 +26,16 @@ export type ExerciseLog = {
   weight: string;
 };
 
-// Instead of setting up a spreadsheet, we just seed Firebase if it's empty
+export type BodyMeasurement = {
+  date: string;
+  clientName: string;
+  chest: string;
+  hips: string;
+  arms: string;
+  weight: string;
+};
+
 export async function initializeDatabase(adminEmail: string): Promise<string> {
-  // Check if exercises collection exists
   const exSnap = await getDocs(collection(db, "exercises"));
   if (exSnap.empty) {
     const defaultExercises = [
@@ -48,17 +51,15 @@ export async function initializeDatabase(adminEmail: string): Promise<string> {
     }
   }
 
-  // Check if any trainers exist, if not create admin
   const trSnap = await getDocs(collection(db, "trainers"));
   if (trSnap.empty) {
-    await setDoc(doc(db, "trainers", adminEmail), {
+    await setDoc(doc(db, "trainers", adminEmail.toLowerCase()), {
       name: "Admin Trainer",
-      email: adminEmail,
+      email: adminEmail.toLowerCase(),
       password: "trainer123",
     });
   }
-
-  return "firestore-db";
+  return "firestore-connected";
 }
 
 export async function appendMeasurement(measurement: BodyMeasurement) {
@@ -81,23 +82,7 @@ export async function deleteLogRecord(log: ExerciseLog) {
      await deleteDoc(doc(db, "logs", log.id));
      return;
   }
-  // Fallback if no ID is provided, query to find exactly matching record
-  const q = query(
-    collection(db, "logs"), 
-    where("clientName", "==", log.clientName),
-    where("date", "==", log.date),
-    where("exercise", "==", log.exercise)
-  );
-  
-  const snap = await getDocs(q);
-  // delete the first match that also matches reps/sets
-  for (const docSnap of snap.docs) {
-    const data = docSnap.data();
-    if (data.sets === log.sets && data.reps === log.reps && data.weight === log.weight) {
-       await deleteDoc(docSnap.ref);
-       break;
-    }
-  }
+  // fallback if ID not found but that shouldn't happen newly
 }
 
 export async function fetchClientLogs(clientName: string) {
@@ -120,6 +105,10 @@ export async function addTrainer(trainerProfile: { name: string; email: string; 
   });
 }
 
+export async function updateTrainer(email: string, trainerProfile: Partial<{ name: string; password?: string }>) {
+  await updateDoc(doc(db, "trainers", email.toLowerCase()), trainerProfile);
+}
+
 export async function deleteTrainerRecord(email: string) {
   await deleteDoc(doc(db, "trainers", email.toLowerCase()));
 }
@@ -130,9 +119,13 @@ export async function fetchAllClients() {
 }
 
 export async function addClient(client: ClientProfile) {
-  // Use a unique ID based on name and trainer to ensure simple uniqueness mapping
   const docId = `${client.name}_${client.trainerEmail}`.replace(/[^a-zA-Z0-9]/g, '_');
   await setDoc(doc(db, "clients", docId), client);
+}
+
+export async function updateClient(name: string, trainerEmail: string, clientData: Partial<ClientProfile>) {
+  const docId = `${name}_${trainerEmail}`.replace(/[^a-zA-Z0-9]/g, '_');
+  await updateDoc(doc(db, "clients", docId), clientData);
 }
 
 export async function deleteClientRecord(name: string, trainerEmail: string) {
@@ -150,10 +143,7 @@ export async function doLogin(email: string, password: string, role: string) {
       const q = query(collection(db, "clients"), where("password", "==", password));
       const snap = await getDocs(q);
       const client = snap.docs.find(d => {
-         const data = d.data();
-         // we don't have email for client, we use 'name' as email login field in the UI sometimes?
-         // wait, the old UI used email field but matched on row[0] which is 'Client Name'
-         return data.name.toLowerCase() === email.toLowerCase();
+         return d.data().name.toLowerCase() === email.toLowerCase();
       });
       if (client) {
          return { success: true, user: { name: client.data().name, trainerEmail: client.data().trainerEmail }};

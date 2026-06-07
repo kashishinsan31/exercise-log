@@ -3,6 +3,7 @@
   "appId": "1:289245743732:web:91adf862eb2f2f99eb5f21",
   "apiKey": "AIzaSyC35yyzdQcW2UOnWi1YSU_pKjTlSOn5bmM",
   "authDomain": "chrome-clarity-ptgzl.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-cdba9bc7-ec5a-4885-a585-38ffcb251131",
   "storageBucket": "chrome-clarity-ptgzl.firebasestorage.app",
   "messagingSenderId": "289245743732",
   "measurementId": ""
