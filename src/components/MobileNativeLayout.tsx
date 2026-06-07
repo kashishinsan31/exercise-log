@@ -21,7 +21,7 @@ export function MobileNativeLayout({ children, onBack, onLogout, onRefresh, titl
         
         {/* Header content */}
         <div className="px-5 pt-[max(env(safe-area-inset-top),16px)] pb-3 flex justify-between items-center z-10 shrink-0">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
              {onBack && (
                <button onClick={onBack} className="w-9 h-9 bg-[#1C1C1E] rounded-full flex items-center justify-center relative overflow-hidden shrink-0 shadow-sm border border-white/5">
                   <ChevronLeft className="w-5 h-5 text-white/80" />
@@ -30,7 +30,7 @@ export function MobileNativeLayout({ children, onBack, onLogout, onRefresh, titl
              <motion.div 
                initial={{ opacity: 0, x: -10 }}
                animate={{ opacity: 1, x: 0 }}
-               className="flex flex-col"
+               className="flex flex-col min-w-0"
              >
                {subtitle && <span className="text-[#8e8e93] text-[10px] sm:text-xs font-semibold tracking-wider uppercase mb-0.5">{subtitle}</span>}
                {title && <h1 className="text-xl sm:text-2xl font-bold tracking-tight line-clamp-1 leading-none capitalize">{title}</h1>}

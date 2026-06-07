@@ -177,7 +177,9 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   }, [selectedClient]);
 
   const loadSystemData = async (spreadsheetId?: string) => {
-      // Legacy func
+      // Data is synced in real-time, but this gives visual feedback for the refresh button
+      setIsLoadingData(true);
+      setTimeout(() => setIsLoadingData(false), 600);
   };
 
   const handleConnectOrGenerateDB = async (e?: React.FormEvent) => {

@@ -159,8 +159,12 @@ export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwit
   }, [selectedClient]);
 
   const fetchClientData = async (user: {name: string, trainerEmail?: string}) => {
-    // Legacy function, no longer needed as state updates via subscriptions.
-    setStep('dashboard');
+    // With real-time subscriptions, manual fetch isn't strictly necessary,
+    // but the refresh button gives users confidence.
+    setIsLoading(true);
+    setTimeout(() => {
+        setIsLoading(false);
+    }, 600);
   };
 
   const handleDeleteMeasurement = async (m: BodyMeasurement) => {

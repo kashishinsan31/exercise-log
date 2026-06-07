@@ -152,7 +152,9 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
   }, [selectedClient]);
 
   const fetchClients = async (tEmail: string) => { 
-      // Handled by state subscriptions
+      // Handled by state subscriptions, but provide visual feedback for refresh button
+      setIsLoadingLogs(true);
+      setTimeout(() => setIsLoadingLogs(false), 600);
   };
 
   const handleDeleteMeasurement = async (m: BodyMeasurement) => {
