@@ -42,18 +42,10 @@ export default function App() {
             className="w-48 h-48 bg-white rounded-full flex flex-col items-center justify-center shadow-[0_8px_32px_rgba(255,255,255,0.1)] overflow-hidden border-[8px] border-black relative mb-8"
           >
             <img 
-               src="/logo.png" 
+               src="https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png" 
                alt="Waiter Walk Logo" 
-               className="object-cover w-full h-full absolute inset-0 z-20"
-               onError={(e) => {
-                 (e.target as HTMLImageElement).style.display = 'none';
-                 const nextSibling = (e.target as HTMLImageElement).nextElementSibling as HTMLElement;
-                 if (nextSibling) nextSibling.style.display = 'flex';
-               }}
+               className="object-contain p-4 w-full h-full absolute inset-0 z-20 bg-white"
             />
-            <div className="hidden absolute inset-0 bg-[#0A0A0C] flex-col items-center justify-center z-10">
-               <img src="https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png" alt="Company Logo" className="w-24 h-24 object-contain mb-2 opacity-50" />
-            </div>
           </motion.div>
           <motion.span 
             initial={{ y: 20, opacity: 0 }}

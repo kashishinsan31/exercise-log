@@ -263,8 +263,8 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   if (!isAuthenticated) {
     return (
       <MobileNativeLayout onBack={onBack}>
-        <div className="flex flex-col items-center justify-center mt-8 mb-12">
-          <div className="w-20 h-20 rounded-[2rem] flex items-center justify-center mb-6 overflow-hidden bg-white/5">
+        <div className="flex flex-col items-center justify-center mt-4 mb-8">
+          <div className="w-16 h-16 rounded-[2rem] flex items-center justify-center mb-4 overflow-hidden bg-white/5">
             <img src="https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png" alt="Company Logo" className="w-full h-full object-contain p-2" />
           </div>
           <p className="text-[#8e8e93] text-center max-w-[250px]">System administration access.</p>
