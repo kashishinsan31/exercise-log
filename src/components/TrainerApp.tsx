@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LogOut, Dumbbell, Calendar as CalendarIcon, Loader2, CheckCircle2, List as ListIcon, Activity, Plus, PieChart as ChartIcon, Lock, Trash2, Users, Star, Settings } from 'lucide-react';
-import { ExerciseLog, BodyMeasurement, TrainerReview, fetchExercises, fetchAllClients, doLogin, fetchClientLogs, fetchClientMeasurements, deleteLogRecord, appendLogRecord, appendMeasurement, deleteMeasurement, updateMeasurement, fetchTrainerReviews, updateTrainer, fetchAllLogs, fetchAllTrainers, TrackedTrainer, ClientProfile } from '../lib/db';
+import { ExerciseLog, BodyMeasurement, TrainerReview, fetchExercises, fetchAllClients, doLogin, fetchClientLogs, fetchClientMeasurements, deleteLogRecord, appendLogRecord, appendMeasurement, deleteMeasurement, updateMeasurement, fetchTrainerReviews, updateTrainer, fetchAllLogs, fetchAllTrainers, TrackedTrainer, ClientProfile, subscribeToAllClients, subscribeToAllTrainers, subscribeToAllLogs, subscribeToTrainerReviews, subscribeToLogs, subscribeToMeasurements, subscribeToExercises } from '../lib/db';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { ClientDashboard } from './ClientDashboard';
@@ -102,8 +102,13 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
   };
 
   useEffect(() => {
-    fetchExercises().then(data => setExercises(data)).catch(console.error);
+    const unsubEx = subscribeToExercises(setExercises);
     
+    let unsubTrainerClients: any;
+    let unsubTrainerTrainers: any;
+    let unsubTrainerLogs: any;
+    let unsubReviews: any;
+
     const saved = localStorage.getItem('protrainer_session');
     if (saved) {
       try {
@@ -111,29 +116,43 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
         if (role === 'trainer' && user) {
           setTrainerName(user.name);
           setEmail(user.email);
-          fetchClients(user.email);
           setStep('dashboard');
+
+          unsubTrainerClients = subscribeToAllClients((all) => {
+             setClients(all.filter(c => c.trainerEmail === user.email || c.secondaryTrainerEmail === user.email)); 
+             setGlobalClients(all);
+          });
+          unsubReviews = subscribeToTrainerReviews(user.email, setTrainerReviews);
+          unsubTrainerTrainers = subscribeToAllTrainers(setGlobalTrainers);
+          unsubTrainerLogs = subscribeToAllLogs(setGlobalLogs);
         }
       } catch(e) {}
     }
+
+    return () => {
+       unsubEx();
+       if (unsubTrainerClients) unsubTrainerClients();
+       if (unsubReviews) unsubReviews();
+       if (unsubTrainerTrainers) unsubTrainerTrainers();
+       if (unsubTrainerLogs) unsubTrainerLogs();
+    };
   }, []);
 
-  const fetchClients = async (tEmail: string) => { 
-      try { 
-          const all = await fetchAllClients(); 
-          setClients(all.filter(c => c.trainerEmail === tEmail || c.secondaryTrainerEmail === tEmail)); 
-          setGlobalClients(all);
-          const reviews = await fetchTrainerReviews(tEmail);
-          setTrainerReviews(reviews);
-          
-          const trainers = await fetchAllTrainers();
-          setGlobalTrainers(trainers);
+  useEffect(() => {
+    if (selectedClient) {
+       setIsLoadingLogs(true);
+       const unsubLogs = subscribeToLogs(selectedClient, setClientLogs);
+       const unsubMeasurements = subscribeToMeasurements(selectedClient, setClientMeasurements);
+       setIsLoadingLogs(false);
+       return () => {
+          unsubLogs();
+          unsubMeasurements();
+       };
+    }
+  }, [selectedClient]);
 
-          const logs = await fetchAllLogs();
-          setGlobalLogs(logs);
-      } catch (e) { 
-          setErrorMsg('Failed to fetch clients or reviews'); 
-      } 
+  const fetchClients = async (tEmail: string) => { 
+      // Handled by state subscriptions
   };
 
   const handleDeleteMeasurement = async (m: BodyMeasurement) => {
@@ -174,20 +193,7 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
   const loadClientData = async (clientName: string) => {
     setSelectedClient(clientName);
     setActiveTab('dashboard');
-    setIsLoadingLogs(true);
     setErrorMsg('');
-    try {
-      const logs = await fetchClientLogs(clientName);
-      const measures = await fetchClientMeasurements(clientName);
-      const dataPayload = { logs, measurements: measures };
-
-      setClientLogs((dataPayload.logs || []).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-      setClientMeasurements((dataPayload.measurements || []).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    } catch(err: any) {
-       console.error(err);
-    } finally {
-      setIsLoadingLogs(false);
-    }
   };
 
   const handleDeleteLog = async (log: ExerciseLog) => {

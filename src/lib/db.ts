@@ -114,6 +114,58 @@ export async function appendMeasurement(measurement: BodyMeasurement) {
   await addDoc(collection(db, "measurements"), measurement);
 }
 
+export function subscribeToMeasurements(clientName: string, callback: (measurements: BodyMeasurement[]) => void) {
+  const q = query(collection(db, "measurements"), where("clientName", "==", clientName));
+  return onSnapshot(q, (snapshot) => {
+    const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BodyMeasurement));
+    callback(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  });
+}
+
+export function subscribeToLogs(clientName: string, callback: (logs: ExerciseLog[]) => void) {
+  const q = query(collection(db, "logs"), where("clientName", "==", clientName));
+  return onSnapshot(q, (snapshot) => {
+    const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ExerciseLog));
+    callback(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  });
+}
+
+export function subscribeToAllClients(callback: (clients: ClientProfile[]) => void) {
+  return onSnapshot(collection(db, "clients"), (snapshot) => {
+    callback(snapshot.docs.map(d => d.data() as ClientProfile));
+  });
+}
+
+export function subscribeToAllTrainers(callback: (trainers: {name: string, email: string, phone: string}[]) => void) {
+  return onSnapshot(collection(db, "trainers"), (snapshot) => {
+    callback(snapshot.docs.map(d => ({ name: d.data().name as string, email: d.data().email as string, phone: d.data().phone as string })));
+  });
+}
+
+export function subscribeToAllLogs(callback: (logs: ExerciseLog[]) => void) {
+  return onSnapshot(collection(db, "logs"), (snapshot) => {
+    const data: ExerciseLog[] = [];
+    snapshot.forEach(doc => {
+      data.push({ id: doc.id, ...doc.data() } as ExerciseLog);
+    });
+    callback(data);
+  });
+}
+
+export function subscribeToTrainerReviews(trainerEmail: string | undefined, callback: (reviews: TrainerReview[]) => void) {
+  if (!trainerEmail) {
+      return onSnapshot(collection(db, "trainer_reviews"), (snapshot) => {
+        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as TrainerReview));
+        callback(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      });
+  }
+  const q = query(collection(db, "trainer_reviews"), where("trainerEmail", "==", trainerEmail));
+  return onSnapshot(q, (snapshot) => {
+    const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as TrainerReview));
+    callback(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  });
+}
+
 export async function fetchClientMeasurements(clientName: string) {
   const q = query(collection(db, "measurements"), where("clientName", "==", clientName));
   const snap = await getDocs(q);
@@ -220,6 +272,12 @@ export async function fetchAllTrainerReviews() {
   const snap = await getDocs(collection(db, "trainer_reviews"));
   const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as TrainerReview));
   return data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+export function subscribeToExercises(callback: (exercises: {id: string, name: string, group: string}[]) => void) {
+   return onSnapshot(collection(db, "exercises"), (snapshot) => {
+      callback(snapshot.docs.map(d => ({ id: d.id, name: d.data().name as string, group: d.data().group as string })));
+   });
 }
 
 export async function addExerciseRecord(exercise: { name: string; group: string }) {

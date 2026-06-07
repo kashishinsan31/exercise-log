@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { doLogin, fetchClientLogs, fetchClientMeasurements, appendMeasurement, deleteMeasurement, ExerciseLog, BodyMeasurement, ClientProfile, addTrainerReview, updateClient, fetchAllLogs, fetchAllClients, fetchAllTrainers, TrackedTrainer, fetchTrainerReviews, TrainerReview } from '../lib/db';
+import { doLogin, fetchClientLogs, fetchClientMeasurements, appendMeasurement, deleteMeasurement, ExerciseLog, BodyMeasurement, ClientProfile, addTrainerReview, updateClient, fetchAllLogs, fetchAllClients, fetchAllTrainers, TrackedTrainer, fetchTrainerReviews, TrainerReview, subscribeToLogs, subscribeToMeasurements, subscribeToAllClients, subscribeToAllTrainers, subscribeToAllLogs, subscribeToTrainerReviews } from '../lib/db';
 import { Loader2, Dumbbell, Lock, FileText, Activity, User, PlusCircle, Trash2, Star, Settings, Trophy } from 'lucide-react';
 import { ClientDashboard } from './ClientDashboard';
 import { MobileNativeLayout, MobileTabItem } from './MobileNativeLayout';
@@ -125,39 +125,42 @@ export function ClientApp({ onBack, onSwitchRole }: { onBack: () => void, onSwit
         const { role, user } = JSON.parse(saved);
         if (role === 'client' && user) {
           setSelectedClient(user);
-          fetchClientData(user);
           setStep('dashboard');
         }
       } catch (e) {}
     }
   }, []);
 
-  const fetchClientData = async (user: {name: string, trainerEmail?: string}) => {
-    try {
-      const logs = await fetchClientLogs(user.name); 
-      const measurements = await fetchClientMeasurements(user.name); 
-      const dataPayload = { logs, measurements };
-      setClientLogs(dataPayload.logs || []);
-      setClientMeasurements(dataPayload.measurements || []);
-
-      const allC = await fetchAllClients();
-      setGlobalClients(allC);
-      const allT = await fetchAllTrainers();
-      setGlobalTrainers(allT);
-      const allL = await fetchAllLogs();
-      setGlobalLogs(allL);
-
-      if (user.trainerEmail) {
-         const revs = await fetchTrainerReviews(user.trainerEmail);
-         setTrainerReviews(revs || []);
+  React.useEffect(() => {
+    if (selectedClient) {
+      setIsLoading(true);
+      const unsubLogs = subscribeToLogs(selectedClient.name, setClientLogs);
+      const unsubMeasurements = subscribeToMeasurements(selectedClient.name, setClientMeasurements);
+      const unsubClients = subscribeToAllClients(setGlobalClients);
+      const unsubTrainers = subscribeToAllTrainers(setGlobalTrainers);
+      const unsubAllLogs = subscribeToAllLogs(setGlobalLogs);
+      
+      let unsubReviews: any;
+      if (selectedClient.trainerEmail) {
+         unsubReviews = subscribeToTrainerReviews(selectedClient.trainerEmail, setTrainerReviews);
       }
-
-      setStep('dashboard');
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to fetch client data.');
-    } finally {
+      
       setIsLoading(false);
+      
+      return () => {
+         unsubLogs();
+         unsubMeasurements();
+         unsubClients();
+         unsubTrainers();
+         unsubAllLogs();
+         if (unsubReviews) unsubReviews();
+      };
     }
+  }, [selectedClient]);
+
+  const fetchClientData = async (user: {name: string, trainerEmail?: string}) => {
+    // Legacy function, no longer needed as state updates via subscriptions.
+    setStep('dashboard');
   };
 
   const handleDeleteMeasurement = async (m: BodyMeasurement) => {

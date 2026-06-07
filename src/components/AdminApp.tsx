@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, LogOut, Plus, Users, Dumbbell, Activity, LineChart as LineChartIcon, Loader2, Database, Link as LinkIcon, UserPlus, Trash2, Edit2, X, Check, Search, Menu, Star, Bell } from 'lucide-react';
 import { Trophy } from 'lucide-react';
-import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, fetchExercises, addExerciseRecord, deleteExerciseRecord, ClientProfile, ExerciseLog, BodyMeasurement, initializeDatabase, addTrainer, addClient, deleteTrainerRecord, deleteClientRecord, updateTrainer, updateClient, TrainerReview, fetchAllTrainerReviews, sendNotification, fetchAllLogs } from '../lib/db';
+import { fetchAllClients, fetchAllTrainers, fetchClientLogs, fetchClientMeasurements, fetchExercises, addExerciseRecord, deleteExerciseRecord, ClientProfile, ExerciseLog, BodyMeasurement, initializeDatabase, addTrainer, addClient, deleteTrainerRecord, deleteClientRecord, updateTrainer, updateClient, TrainerReview, fetchAllTrainerReviews, sendNotification, fetchAllLogs, subscribeToExercises, subscribeToAllClients, subscribeToAllTrainers, subscribeToAllLogs, subscribeToTrainerReviews, subscribeToLogs, subscribeToMeasurements } from '../lib/db';
 import { ClientDashboard } from './ClientDashboard';
 import { LoggerForm } from './TrainerApp';
 import { MobileNativeLayout, MobileTabItem } from './MobileNativeLayout';
@@ -145,29 +145,39 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
     const stored = localStorage.getItem('protrainer_db');
     if (stored) {
        setDbSpreadsheetId(stored);
-       loadSystemData();
     } else {
        setDbInputMode('url');
     }
+
+    const unsubT = subscribeToAllTrainers(setTrainers);
+    const unsubC = subscribeToAllClients(setClients);
+    const unsubE = subscribeToExercises(setExercises);
+    const unsubR = subscribeToTrainerReviews(undefined, setAllReviews);
+    const unsubL = subscribeToAllLogs(setAllLogs);
+    
+    return () => {
+       unsubT();
+       unsubC();
+       unsubE();
+       unsubR();
+       unsubL();
+    };
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    if (selectedClient) {
+       setIsLoadingData(true);
+       const unsubL = subscribeToLogs(selectedClient.name, setClientLogs);
+       const unsubM = subscribeToMeasurements(selectedClient.name, setClientMeasurements);
+       setIsLoadingData(false);
+       return () => {
+          unsubL(); unsubM();
+       };
+    }
+  }, [selectedClient]);
+
   const loadSystemData = async (spreadsheetId?: string) => {
-      try {
-          const tData = await fetchAllTrainers();
-          const cData = await fetchAllClients();
-          const eData = await fetchExercises();
-          const rData = await fetchAllTrainerReviews();
-          const lData = await fetchAllLogs();
-          setTrainers(tData || []);
-          setClients(cData || []);
-          setExercises(eData || []);
-          setAllReviews(rData || []);
-          setAllLogs(lData || []);
-          setAddDBError('');
-      } catch (err: any) {
-         console.error('Failed to load system data:', err);
-         setAddDBError(err.message || 'Failed to connect to database.');
-      }
+      // Legacy func
   };
 
   const handleConnectOrGenerateDB = async (e?: React.FormEvent) => {
@@ -370,18 +380,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
   };
 
   const loadClientData = async (client: ClientProfile) => {
-    setIsLoadingData(true);
     setSelectedClient(client);
-    try {
-      const logs = await fetchClientLogs(client.name);
-      const measurements = await fetchClientMeasurements(client.name);
-      setClientLogs(logs);
-      setClientMeasurements(measurements);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoadingData(false);
-    }
   };
 
   if (!isAuthenticated) {
