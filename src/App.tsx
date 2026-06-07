@@ -52,7 +52,7 @@ export default function App() {
                }}
             />
             <div className="hidden absolute inset-0 bg-[#0A0A0C] flex-col items-center justify-center z-10">
-               <Dumbbell className="w-16 h-16 text-white mb-2" />
+               <img src="https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png" alt="Company Logo" className="w-24 h-24 object-contain mb-2 opacity-50" />
             </div>
           </motion.div>
           <motion.span 

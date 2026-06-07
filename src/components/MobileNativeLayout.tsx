@@ -31,7 +31,7 @@ export function MobileNativeLayout({ children, onBack, onLogout, title, subtitle
                </button>
              ) : (
                <div className="w-10 h-10 flex items-center justify-center shrink-0 overflow-hidden relative rounded-full">
-                 <img src="/logo.png" alt="" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                 <img src="https://waiterwalk.com/wp-content/uploads/2018/05/Waiter-walk-Final-logo-298x300-1.png" alt="" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                </div>
              )}
              <motion.div 
