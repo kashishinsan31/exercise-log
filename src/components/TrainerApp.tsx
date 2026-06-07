@@ -102,41 +102,27 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
   };
 
   useEffect(() => {
-    const unsubEx = subscribeToExercises(setExercises);
-    
-    let unsubTrainerClients: any;
-    let unsubTrainerTrainers: any;
-    let unsubTrainerLogs: any;
-    let unsubReviews: any;
-
-    const saved = localStorage.getItem('protrainer_session');
-    if (saved) {
-      try {
-        const { role, user } = JSON.parse(saved);
-        if (role === 'trainer' && user) {
-          setTrainerName(user.name);
-          setEmail(user.email);
-          setStep('dashboard');
-
-          unsubTrainerClients = subscribeToAllClients((all) => {
-             setClients(all.filter(c => c.trainerEmail === user.email || c.secondaryTrainerEmail === user.email)); 
-             setGlobalClients(all);
-          });
-          unsubReviews = subscribeToTrainerReviews(user.email, setTrainerReviews);
-          unsubTrainerTrainers = subscribeToAllTrainers(setGlobalTrainers);
-          unsubTrainerLogs = subscribeToAllLogs(setGlobalLogs);
-        }
-      } catch(e) {}
-    }
-
-    return () => {
-       unsubEx();
-       if (unsubTrainerClients) unsubTrainerClients();
-       if (unsubReviews) unsubReviews();
-       if (unsubTrainerTrainers) unsubTrainerTrainers();
-       if (unsubTrainerLogs) unsubTrainerLogs();
-    };
+    return subscribeToExercises(setExercises);
   }, []);
+
+  useEffect(() => {
+    if (step === 'dashboard' && email) {
+      const unsubTrainerClients = subscribeToAllClients((all) => {
+         setClients(all.filter(c => c.trainerEmail === email || c.secondaryTrainerEmail === email)); 
+         setGlobalClients(all);
+      });
+      const unsubReviews = subscribeToTrainerReviews(email, setTrainerReviews);
+      const unsubTrainerTrainers = subscribeToAllTrainers(setGlobalTrainers);
+      const unsubTrainerLogs = subscribeToAllLogs(setGlobalLogs);
+
+      return () => {
+         unsubTrainerClients();
+         unsubReviews();
+         unsubTrainerTrainers();
+         unsubTrainerLogs();
+      };
+    }
+  }, [step, email]);
 
   useEffect(() => {
     if (selectedClient) {

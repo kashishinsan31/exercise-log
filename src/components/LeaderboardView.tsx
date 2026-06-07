@@ -21,8 +21,11 @@ export function LeaderboardView({ logs, clients, trainers, currentRole, loggedIn
       : startOfWeek(new Date(), { weekStartsOn: 1 });
       
     let validLogs = logs.filter(l => {
+      if (!l || !l.date) return false;
       try {
-        return isAfter(parseISO(l.date), startDate) || parseISO(l.date).getTime() === startDate.getTime();
+        const parsed = parseISO(l.date);
+        if (isNaN(parsed.getTime())) return false;
+        return isAfter(parsed, startDate) || parsed.getTime() === startDate.getTime();
       } catch (e) {
         return false;
       }
@@ -34,19 +37,23 @@ export function LeaderboardView({ logs, clients, trainers, currentRole, loggedIn
 
     validLogs.forEach(log => {
       const volume = (Number(log.sets) || 0) * (Number(log.reps) || 0) * (Number(log.weight) || 0);
-      if (volume > 0) {
-        clientVolumes[log.clientName] = (clientVolumes[log.clientName] || 0) + volume;
+      if (volume > 0 && log.clientName) {
+        const nameKey = log.clientName.trim();
+        clientVolumes[nameKey] = (clientVolumes[nameKey] || 0) + volume;
       }
     });
 
     // Map clients to trainers
     clients.forEach(c => {
-      const vol = clientVolumes[c.name] || 0;
+      if (!c || !c.name) return;
+      const cleanName = c.name.trim();
+      const vol = clientVolumes[cleanName] || 0;
       if (c.trainerEmail) {
-        trainerVolumes[c.trainerEmail] = (trainerVolumes[c.trainerEmail] || 0) + vol;
+        const cleanEmail = c.trainerEmail.trim().toLowerCase();
+        trainerVolumes[cleanEmail] = (trainerVolumes[cleanEmail] || 0) + vol;
         
-        if (!trainerClients[c.trainerEmail]) trainerClients[c.trainerEmail] = {};
-        trainerClients[c.trainerEmail][c.name] = vol;
+        if (!trainerClients[cleanEmail]) trainerClients[cleanEmail] = {};
+        trainerClients[cleanEmail][cleanName] = vol;
       }
     });
 
@@ -56,7 +63,7 @@ export function LeaderboardView({ logs, clients, trainers, currentRole, loggedIn
 
     const overallTrainers = Object.entries(trainerVolumes)
       .map(([email, volume]) => {
-        const t = trainers.find(tr => tr.email === email);
+        const t = trainers?.find(tr => tr?.email?.trim().toLowerCase() === email);
         return { name: t?.name || email, email, volume };
       })
       .sort((a, b) => b.volume - a.volume);
@@ -64,7 +71,7 @@ export function LeaderboardView({ logs, clients, trainers, currentRole, loggedIn
     const topClientsByTrainer = Object.entries(trainerClients)
       .map(([email, cVols]) => {
         const topClient = Object.entries(cVols).sort((a, b) => b[1] - a[1])[0];
-        const t = trainers.find(tr => tr.email === email);
+        const t = trainers?.find(tr => tr?.email?.trim().toLowerCase() === email);
         return {
           trainerName: t?.name || email,
           topClientName: topClient?.[0] || 'N/A',
@@ -76,8 +83,8 @@ export function LeaderboardView({ logs, clients, trainers, currentRole, loggedIn
     const myClientsList = Object.entries(clientVolumes)
       .map(([name, volume]) => ({ name, volume }))
       .filter(item => {
-        const client = clients.find(c => c.name === item.name);
-        return client?.trainerEmail === loggedInUserEmail;
+        const client = clients.find(c => c?.name?.trim().toLowerCase() === item.name.toLowerCase());
+        return client?.trainerEmail?.trim().toLowerCase() === loggedInUserEmail?.trim().toLowerCase();
       })
       .sort((a, b) => b.volume - a.volume);
 
