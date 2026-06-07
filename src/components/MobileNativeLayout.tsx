@@ -16,11 +16,11 @@ interface MobileNativeLayoutProps {
 
 export function MobileNativeLayout({ children, onBack, onLogout, onRefresh, title, subtitle, bottomNav, headerRight }: MobileNativeLayoutProps) {
   return (
-    <div className="fixed inset-0 bg-[#0A0A0C] flex justify-center p-0 z-50 font-sans sm:bg-black/90">
-      <div className="w-full h-[100dvh] sm:h-full sm:max-w-md sm:border-x border-white/10 bg-[#0A0A0C] text-white relative overflow-hidden flex flex-col shadow-2xl">
+    <div className="fixed inset-0 bg-[#0A0A0C] w-full h-[100dvh] z-50 font-sans overflow-hidden">
+      <div className="w-full h-full bg-[#0A0A0C] text-white relative flex flex-col">
         
         {/* Header content */}
-        <div className="px-5 pt-3 pb-2 flex justify-between items-center z-10 shrink-0">
+        <div className="px-5 pt-4 pb-3 flex justify-between items-center z-10 shrink-0">
           <div className="flex items-center gap-3">
              {onBack && (
                <button onClick={onBack} className="w-9 h-9 bg-[#1C1C1E] rounded-full flex items-center justify-center relative overflow-hidden shrink-0 shadow-sm border border-white/5">

@@ -22,7 +22,16 @@ interface ExerciseItem {
 
 export function AdminApp({ onBack }: { onBack: () => void }) {
   const [password, setPassword] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+     const session = localStorage.getItem('protrainer_session');
+     if (session) {
+         try {
+           const parsed = JSON.parse(session);
+           if (parsed.role === 'admin') return true;
+         } catch(e) {}
+     }
+     return false;
+  });
   const [error, setError] = useState(false);
   
   const [activeTab, setActiveTab] = useState<'trainers' | 'clients' | 'exercises' | 'overview' | 'reviews' | 'notifications' | 'leaderboard'>('trainers');
@@ -100,6 +109,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
     if (password === 'admin123') {
       setIsAuthenticated(true);
       setError(false);
+      localStorage.setItem('protrainer_session', JSON.stringify({ role: 'admin' }));
     } else {
       setError(true);
     }
@@ -503,7 +513,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
       title="Admin Portal"
       subtitle="System Overview"
       onRefresh={() => loadSystemData(dbSpreadsheetId)}
-      onLogout={() => { setIsAuthenticated(false); onBack(); }}
+      onLogout={() => { localStorage.removeItem('protrainer_session'); setIsAuthenticated(false); onBack(); }}
       bottomNav={
         <>
           <MobileTabItem icon={<Dumbbell />} label="Trainers" isActive={activeTab === 'trainers'} onClick={() => setActiveTab('trainers')} activeColor="text-[#FF3B30]" />
@@ -595,7 +605,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                         </div>
                         <Activity className="w-5 h-5 text-[#8e8e93]" />
                       </div>
-                      <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-white/5">
+                      <div className="flex flex-wrap justify-end gap-2 mt-2 pt-2 border-t border-white/5">
                         <button onClick={(e) => { e.stopPropagation(); setEditingTrainerEmail(t.email); setEditTrainerName(t.name); setEditTrainerPhone(t.phone || ''); setEditTrainerPassword(''); }} className="p-2 text-[#8e8e93] hover:text-white transition-colors"><Edit2 className="w-4 h-4" /></button>
                         {confirmDeleteTrainer === t.email ? (
                           <div className="flex gap-2 items-center">
@@ -723,7 +733,7 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
                          )}
                        </div>
                      </div>
-                     <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-white/5">
+                     <div className="flex flex-wrap items-center justify-end gap-2 mt-2 pt-2 border-t border-white/5">
                        <button onClick={(e) => {
                          e.stopPropagation();
                          localStorage.setItem('protrainer_session', JSON.stringify({ role: 'client', user: { name: c.name, trainerEmail: c.trainerEmail } }));
