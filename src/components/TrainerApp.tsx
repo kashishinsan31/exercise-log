@@ -4,7 +4,6 @@ import { ExerciseLog, BodyMeasurement, fetchExercises, fetchAllClients, doLogin,
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { ClientDashboard } from './ClientDashboard';
-import { googleSignIn } from '../lib/firebase';
 
 export function TrainerApp({ onBack }: { onBack: () => void }) {
   const [step, setStep] = useState<'login' | 'dashboard'>(() => {
