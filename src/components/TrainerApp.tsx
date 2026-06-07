@@ -262,6 +262,17 @@ export function TrainerApp({ onBack }: { onBack: () => void }) {
             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Secure Login'}
           </button>
         </form>
+
+        <div className="mt-12 pt-8 border-t border-white/10 flex flex-col items-center">
+          <p className="text-[#8e8e93] text-xs text-center max-w-xs mb-4 leading-relaxed">
+            By logging in, you agree to our Terms of Service and Privacy Policy. Secure access is monitored and logged for compliance.
+          </p>
+          <div className="flex gap-4 text-[#007AFF] text-xs font-medium">
+            <button className="hover:underline hover:text-white transition-colors">Help Center</button>
+            <span>&bull;</span>
+            <button className="hover:underline hover:text-white transition-colors">Contact Support</button>
+          </div>
+        </div>
       </MobileNativeLayout>
     );
   }

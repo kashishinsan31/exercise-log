@@ -588,8 +588,23 @@ export function AdminApp({ onBack }: { onBack: () => void }) {
               <div className="text-[#8e8e93] text-xs">Global dictionary</div>
             </div>
             <div className="flex gap-2">
+              <button 
+                onClick={() => {
+                  const content = "Name,Group\nBench Press,Chest\nSquat,Legs\nDeadlift,Back\nBicep Curl,Arms";
+                  const blob = new Blob([content], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'sample_exercises.csv';
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="bg-white/10 text-white p-2 rounded-xl text-xs font-bold px-3 hover:bg-white/20 transition-colors"
+              >
+                Sample CSV
+              </button>
               <label className="bg-[#34C759]/20 text-[#34C759] p-2 rounded-xl cursor-pointer hover:bg-[#34C759]/30 transition-colors flex items-center justify-center">
-                <span className="text-xs font-bold px-2">CSV</span>
+                <span className="text-xs font-bold px-2">Upload CSV</span>
                 <input type="file" accept=".csv" className="hidden" onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
